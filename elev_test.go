@@ -14,24 +14,24 @@ const NumButtons = driver.NumButtons
 
 //ssh student@129.241.187.150
 
-//Channel for knappetrykk, fra elev_driver til order_handler
+//Channel for knappetrykk, fra elev_driver til order_handler (ekstern)
 buttonEvent = make(chan OrderButton)
 //Channel for heis ved etasje, fra elev_driver til order_handler
 floorEvent = make(chan int)
-//Channel for  ---, fra order_dist. til elev_driver
-motorDir = make(chan int)
 //Channel, fra network til order_handler
 order = make(chan Order)
+//Channel for remove order, fra order_handler til network 
+removeOrder = make(chan Order)
+//Channel for new order, fra elev_driver til network
+newOrder = make(chan order)
+//Channel for cost function value, fra order_dist. til network
+sendCostValue = make(chan int)
 //Channel, fra network til order_distribution
-costValue = make(chan int)
-//Channel for motor direction, fra FSM til elev_driver
-motorDir = make(chan int)
-//Channel for open/close door, fra FSM til elev_driver
-doorState = make(chan int)
-//Channel for motor direction, from order_distribution to FSM
-motorDir = make(chan int)
-//Channel for timer, from elev_driver to FSM
-timer = make(chan int)
+receiveCostValue = make(chan int)
+//Channel for status of peer to peer, fra network til order_distribution
+peers = make(chan int)
+//Channel for motor direction, from order_distribution to FSM, FSM calls function
+setMotorDir = make(chan int)
 
 
 
@@ -53,19 +53,11 @@ func easyElev(buttonEvent chan OrderButton, floorEvent chan int){
 		case floor := <- floorEvent:
 	
 	}
-	for floor := 0; floor < NumFloors; floor ++{
-		for button := 0; button < NumButtons; button++ {
-			buttonSignal = driver.GetButtonSignal(driver.ButtonType(button), floor)
-			if (buttonSignal){
-				
-			}
-		}
-	}
 }
 
 
 func doorsOpen(){
-	SetDorrOpenLamp(1)
+	SetDoorOpenLamp(1)
 	sleep(3000* time.Milliseconds)
 	SetDoorOpenLamp(0)
 }
