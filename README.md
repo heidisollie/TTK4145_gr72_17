@@ -1,4 +1,4 @@
-# TTK4145
-Sanntidsprogrammering
+TTK4145
 
-Her kommer det sikkert mye gøy etterhvert
+
+Filer til Sanntidsprogrammering vår 2017

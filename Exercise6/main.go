@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"os/exec"
-	"../network/bcast"
+	"../network/network/bcast"
 )
 
 const udpPort int = 20002
