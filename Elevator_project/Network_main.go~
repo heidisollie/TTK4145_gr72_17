@@ -1,0 +1,89 @@
+package main
+
+import (
+	"./network/bcast"
+	"./network/localip"
+	"./network/peers"
+	"flag"
+	"fmt"
+	"os"
+	"time"
+)
+
+
+const port_peer int = 20002
+const port1 int = 30012
+const port2 int = 30013
+const port3 int = 30014
+
+
+func main() {
+	var id string
+	flag.StringVar(&id, "id", "", "id of this peer")
+	flag.Parse()
+
+	if id == "" {
+		localIP, err := localip.LocalIP()
+		if err != nil {
+			fmt.Println(err)
+			localIP = "DISCONNECTED"
+		}
+		id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
+	}
+
+	// We make a channel for receiving updates on the id's of the peers that are
+	//  alive on the network
+	peerUpdateCh := make(chan peers.PeerUpdate)
+	// We can disable/enable the transmitter after it has been started.
+	// This could be used to signal that we are somehow "unavailable".
+	peerTxEnable := make(chan bool)
+	
+	go peers.Transmitter(port_peer, id, peerTxEnable)
+	go peers.Receiver(port_peer, peerUpdateCh)
+	
+	
+	sendCostValue := make(chan string)
+	sendNewOrder := make(chan string)
+	sendRemoveOrder := make(chan string)
+	receiveCostValue := make(chan string)
+	receiveNewOrder := make(chan string)
+	receiveRemoveOrder := make (chan string)
+	
+	go bcast.Transmitter(port1, sendCostValue)
+	go bcast.Receiver(port1, receiveCostValue)
+	go bcast.Transmitter(port2, sendNewOrder)
+	go bcast.Receiver(port2, receiveNewOrder)
+	go bcast.Transmitter(port3, sendRemoveOrder)
+	go bcast.Receiver(port3, receiveRemoveOrder)
+
+	for{
+		//fmt.Printf("Id: %s\n", id);
+		fmt.Printf("1: We will send cost value\n")
+		msg1 := "1: Cost value 15\n"
+		sendCostValue <- msg1
+				sendCostValue <- msg1
+						sendCostValue <- msg1
+								sendCostValue <- msg1
+										sendCostValue <- msg1
+		time.Sleep(2*time.Second)
+		fmt.Printf("1: We will send new order\n")
+		msg2 := "1: New order 2U\n"
+		sendNewOrder <- msg2
+				sendNewOrder <- msg2
+						sendNewOrder <- msg2
+								sendNewOrder <- msg2
+										sendNewOrder <- msg2
+												sendNewOrder <- msg2
+		time.Sleep(2*time.Second)
+		fmt.Printf("1: We will send remove order\n")
+		msg3 := "1: Remove order 3D\n"
+		sendRemoveOrder <- msg3
+			sendRemoveOrder <- msg3
+				sendRemoveOrder <- msg3
+					sendRemoveOrder <- msg3
+						sendRemoveOrder <- msg3
+
+
+		time.Sleep(2*time.Second)
+	}
+}
