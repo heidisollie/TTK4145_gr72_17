@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"os/exec"
-	"../network/bcast"
+	"../network/network/bcast"
 )
 
 const udpPort = 20002
@@ -48,6 +48,7 @@ func main(){
 	
 	masterCounter := Counter{0}
 	go bcast.Receiver(udpPort, fromMaster)
+	
 	go func(){
 		<- timer.C
 		isBackup = false

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 	"os/exec"
-	"../network/bcast"
+	"../network/network/bcast"
 )
 
 const udpPort = 20002
 //const myIP = "129.241.187.255"
 
-
+/*
 type Counter struct{
 	State int
 }
@@ -18,8 +18,12 @@ type Counter struct{
 type Message struct{
 	Data int
 }
+*/
 
-func Backup(counter Counter){
+Counter int;
+Message int;
+
+func Backup(counter int){
 
 	toBackup := make(chan Message, 1)
 
@@ -31,10 +35,10 @@ func Backup(counter Counter){
 	
 	
 	for {
-		fmt.Printf("Counter: %d \n", counter.State)
-		msg := Message{counter.State}
+		fmt.Printf("Counter: %d \n", counter)
+		msg := counter
 		toBackup <- msg
-		counter.State++
+		counter++
 		time.Sleep(1*time.Second)
 	}
 	
@@ -48,6 +52,7 @@ func main(){
 	
 	masterCounter := Counter{0}
 	go bcast.Receiver(udpPort, fromMaster)
+	
 	go func(){
 		<- timer.C
 		isBackup = false
@@ -60,7 +65,6 @@ func main(){
 		if isBackup {
 			msg := <- fromMaster
 			masterCounter.State = msg.Data
-			//fmt.Printf("Received counter: %d \n", masterCounter.State)
 			timer.Reset(3*time.Second)
 		}
 	}	
