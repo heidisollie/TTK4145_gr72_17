@@ -20,6 +20,9 @@ QUESTIONS:
 
 Hvis vi broadcaster constant info hele tiden, hvordan stopper vi at de andre netverksmodulen fyller opp kanalene med lik informasjon?
 
+
+Go naming convention for objects and channels?
+
 Channel oversikt
 
 //FSM
