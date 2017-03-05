@@ -15,6 +15,11 @@ Mål for fredag: Skriv ferdig FSM. Driver er ferdig
 
 Begynne på order_dist (kost funksjon!)
 
+
+QUESTIONS:
+
+Hvis vi broadcaster constant info hele tiden, hvordan stopper vi at de andre netverksmodulen fyller opp kanalene med lik informasjon?
+
 Channel oversikt
 
 //FSM
