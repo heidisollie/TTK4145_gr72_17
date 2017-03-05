@@ -12,9 +12,9 @@ import (
 
 
 const port_peer int = 20002
-const port1 int = 30012
-const port2 int = 30013
-const port3 int = 30014
+const port1 int = 37712
+const port2 int = 37713
+const port3 int = 37714
 
 
 func main() {
@@ -61,27 +61,17 @@ func main() {
 		fmt.Printf("1: We will send cost value\n")
 		msg1 := "1: Cost value 15\n"
 		sendCostValue <- msg1
-				sendCostValue <- msg1
-						sendCostValue <- msg1
-								sendCostValue <- msg1
-										sendCostValue <- msg1
+
 		time.Sleep(2*time.Second)
 		fmt.Printf("1: We will send new order\n")
 		msg2 := "1: New order 2U\n"
 		sendNewOrder <- msg2
-				sendNewOrder <- msg2
-						sendNewOrder <- msg2
-								sendNewOrder <- msg2
-										sendNewOrder <- msg2
-												sendNewOrder <- msg2
+
 		time.Sleep(2*time.Second)
 		fmt.Printf("1: We will send remove order\n")
 		msg3 := "1: Remove order 3D\n"
 		sendRemoveOrder <- msg3
-			sendRemoveOrder <- msg3
-				sendRemoveOrder <- msg3
-					sendRemoveOrder <- msg3
-						sendRemoveOrder <- msg3
+
 
 
 		time.Sleep(2*time.Second)

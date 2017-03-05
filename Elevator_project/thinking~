@@ -2,7 +2,7 @@
 
 Heis mister nett
 
-Ntetverks modul har channel til order_dist. som gir beskjed om antall peers og hvilke. Order_dist. har switch case, if en mindre peer 
+Nettverks modul har channel til order_dist. som gir beskjed om antall peers og hvilke. Order_dist. har switch case, if en mindre peer 
 legger de til alle eksterne ordre med den id'en i kost funksjon. Alt annet går som vanlig.
 
 Når heisen kommer på nettet (?:) sender alle heisene ut new order melding for alle ordre på den eksterne køen. De andre heisene mottar 
