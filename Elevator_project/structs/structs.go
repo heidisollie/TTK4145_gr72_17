@@ -1,29 +1,28 @@
 package structs
 
 import (
-	"log"
-	"time"
-	"../network"
-	"encoding/json"
-	
+	"../driver"
 )
 
-
-type Elev_state struct{
-	last_passed_floor  int
-	current_direction driver.MotorDirection
-	id int
+type Elev_state struct {
+	Last_passed_floor int
+	Current_direction driver.MotorDirection
+	IP                string
 }
 
-type Order struct{
-	ButtonType int
-	Floor int
+type Order struct {
+	Type     driver.ButtonType
+	Floor    int
 	Internal bool
+	IP       string
 }
 
 type Cost struct {
-	cost_value int
-	Order Order
-	IP string
+	Cost_value    int
+	Current_order Order
+	IP            string
 }
 
+func Dummy_func() {
+
+}

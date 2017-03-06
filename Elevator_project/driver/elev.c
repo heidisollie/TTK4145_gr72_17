@@ -11,18 +11,18 @@
 
 
 static const int lamp_channel_matrix[N_FLOORS][N_BUTTONS] = {
-    {LIGHT_UP1, LIGHT_DOWN1, LIGHT_COMMAND1},
-    {LIGHT_UP2, LIGHT_DOWN2, LIGHT_COMMAND2},
-    {LIGHT_UP3, LIGHT_DOWN3, LIGHT_COMMAND3},
-    {LIGHT_UP4, LIGHT_DOWN4, LIGHT_COMMAND4},
+    {LIGHT_DOWN1, LIGHT_COMMAND1, LIGHT_UP1},
+    {LIGHT_DOWN2, LIGHT_COMMAND2, LIGHT_UP2},
+    {LIGHT_DOWN3, LIGHT_COMMAND3, LIGHT_UP3},
+    {LIGHT_DOWN4, LIGHT_COMMAND4, LIGHT_UP4},
 };
 
 
 static const int button_channel_matrix[N_FLOORS][N_BUTTONS] = {
-    {BUTTON_UP1, BUTTON_DOWN1, BUTTON_COMMAND1},
-    {BUTTON_UP2, BUTTON_DOWN2, BUTTON_COMMAND2},
-    {BUTTON_UP3, BUTTON_DOWN3, BUTTON_COMMAND3},
-    {BUTTON_UP4, BUTTON_DOWN4, BUTTON_COMMAND4},
+    {BUTTON_DOWN1, BUTTON_COMMAND1, BUTTON_UP1},
+    {BUTTON_DOWN2, BUTTON_COMMAND2, BUTTON_UP2},
+    {BUTTON_DOWN3, BUTTON_COMMAND3, BUTTON_UP3},
+    {BUTTON_DOWN4, BUTTON_COMMAND4, BUTTON_UP4},
 };
 
 
@@ -115,11 +115,7 @@ int elev_get_button_signal(elev_button_type_t button, int floor) {
     assert(button < N_BUTTONS);
 
 
-    if (io_read_bit(button_channel_matrix[floor][button])) {
-        return 1;
-    } else {
-        return 0;
-    }    
+    return io_read_bit(button_channel_matrix[floor][button]);    
 }
 
 
