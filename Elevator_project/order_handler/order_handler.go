@@ -6,14 +6,15 @@ import (
 	"../structs"
 	"fmt"
 	"time"
+	"../localState"
 )
 
 //for all orders in queue, sends new floor if order is command or matches direction
-func other_orders_in_dir(OrderQueue []structs.Order, new_target_floor chan<- int, State structs.Elev_state) {
+func other_orders_in_dir(OrderQueue []structs.Order, new_target_floor chan<- int) {
 	var floorSignal = driver.GetFloorSignal()
 	if floorSignal != -1 {
 		for _, order := range OrderQueue {
-			if order.Floor == floorSignal && (int(order.Type) == int(State.Current_direction)+1 || int(order.Type) == 1) {
+			if order.Floor == floorSignal && (int(order.Type) == int(localState.ReadLocalState().Current_direction)+1 || int(order.Type) == 1) {
 				time.Sleep(10 * time.Millisecond)
 				new_target_floor <- order.Floor
 			}
@@ -41,7 +42,7 @@ func get_new_order(OrderQueue []structs.Order, new_target_floor chan<- int, loca
 }
 
 func printOrderQueue(OrderQueue []structs.Order) {
-	fmt.Printf("---------------------------------")
+	fmt.Printf("---------------------------------\n")
 	fmt.Printf("PRINTING FROM FUNCTION\n")
 	fmt.Printf("Order Queue: \n")
 	for i, order := range OrderQueue {
@@ -53,7 +54,7 @@ func printOrderQueue(OrderQueue []structs.Order) {
 	fmt.Printf("Length: ")
 	fmt.Print(len(OrderQueue))
 	fmt.Printf("\n")
-	fmt.Printf("---------------------------------")
+	fmt.Printf("---------------------------------\n")
 }
 
 func add_order(order structs.Order, OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) []structs.Order {
@@ -83,6 +84,7 @@ func remove_all(floor int, elev_send_remove_order chan<- structs.Order, OrderQue
 	for _, order := range OrderQueue {
 		if order.Floor == floor {
 			fmt.Printf("Found order in floor, removing\n")
+			fmt.Printf("Floor: %d\n", order.Floor)
 			OrderQueue = remove_order(order, OrderQueue)
 			//elev_send_remove_order <- order
 		}
@@ -101,8 +103,7 @@ func merge_orders(){
 // Vi gir objektet State til to moduler samtidig uten at de returnerer verdien når den blir endret.
 // Hvordan vet vi da at State objektet til modulene er oppdatert at all times?????
 
-func Order_handler_init(State structs.Elev_state,
-	OrderQueue []structs.Order,
+func Order_handler_init(OrderQueue []structs.Order,
 	localIP string,
 	floor_completed <-chan int,
 	button_event <-chan driver.OrderButton,
@@ -137,7 +138,9 @@ func Order_handler_init(State structs.Elev_state,
 				elev_send_new_order <- new_order // for å sende til network
 			}
 		case new_order := <-assignedNewOrder:
+			fmt.Printf("Received new order from ord_dist\n")
 			OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
+			fmt.Printf("Added new order in Order Queue\n")
 
 		case order := <-elev_receive_remove_order:
 			OrderQueue = remove_order(order, OrderQueue)
@@ -145,7 +148,7 @@ func Order_handler_init(State structs.Elev_state,
 		case new_order := <-elev_receive_new_order:
 			OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
 		default:
-			other_orders_in_dir(OrderQueue, new_target_floor, State)
+			other_orders_in_dir(OrderQueue, new_target_floor)
 		}
 
 	}

@@ -4,6 +4,8 @@ import (
 	"../driver"
 )
 
+
+
 type Elev_state struct {
 	Last_passed_floor int
 	Current_direction driver.MotorDirection
@@ -22,6 +24,8 @@ type Cost struct {
 	Current_order Order
 	IP            string
 }
+
+	
 
 func Dummy_func() {
 

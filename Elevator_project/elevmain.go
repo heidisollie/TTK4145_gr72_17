@@ -11,7 +11,7 @@ import (
 	"fmt"
 )
 
-
+//Hei
 
 func main() {
 	fmt.Printf("Elev_driver started\n")
@@ -29,7 +29,7 @@ func main() {
 			localIP = "DISCONNECTED"
 		}*/
 
-	localIP = "3456"
+	localIP = network.GetIP()
 
 	var OrderQueue []structs.Order
 
@@ -39,7 +39,7 @@ func main() {
 	//peers := make(chan int)                        //status of peer to peer fra network
 	new_order := make(chan structs.Order)          //ekstern ordre fra order handler for kost funksjonen
 	assigned_new_order := make(chan structs.Order) //ekstern ordre fra order_dist. , med heisID
-	elev_send_cost_value := make(chan structs.Cost)
+	elev_send_cost_value := make(chan structs.Cost, 100)
 	elev_send_new_order := make(chan structs.Order)
 	elev_send_remove_order := make(chan structs.Order)
 	elev_receive_cost_value := make(chan structs.Cost)
@@ -47,14 +47,12 @@ func main() {
 	elev_receive_remove_order := make(chan structs.Order)
 	floor_completed := make(chan int)
 
-	State := structs.Elev_state{Last_passed_floor: 0, Current_direction: driver.DirnStop, IP: localIP}
 
 	driver.ElevInit()
 	go driver.EventListener(button_event, floor_event)
-	go FSM.FSM_init(State, floor_event, new_target_floor, floor_completed)
+	go FSM.FSM_init(floor_event, new_target_floor, floor_completed)
 
-	go order_handler.Order_handler_init(State,
-		OrderQueue,
+	go order_handler.Order_handler_init(OrderQueue,
 		localIP,
 		floor_completed,
 		button_event,
