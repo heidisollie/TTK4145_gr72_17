@@ -30,6 +30,7 @@ func is_duplicate(order structs.Order, OrderQueue []structs.Order) bool {
 	return false
 }
 
+
 func get_new_order(OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) {
 	for _, order := range OrderQueue {
 		if order.IP == localIP {
@@ -94,6 +95,11 @@ func merge_orders(){
 	//Ved nettverksbrud, merger ordre med våre
 	//Kanskje ikke nødvendig da alle ekstern bestillingen allerede er i køen vår
 }*/
+
+
+// ------------------------
+// Vi gir objektet State til to moduler samtidig uten at de returnerer verdien når den blir endret.
+// Hvordan vet vi da at State objektet til modulene er oppdatert at all times?????
 
 func Order_handler_init(State structs.Elev_state,
 	OrderQueue []structs.Order,

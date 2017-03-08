@@ -42,9 +42,9 @@ func UDP_init(
 
 	localIP := "129.241.187.158"
 
-	net_send_new_order := make(chan<- UDPmessage_order)
+	net_send_new_order := make(chan UDPmessage_order)
 
-	net_receive_new_order := make(<-chan UDPmessage_order)
+	net_receive_new_order := make(chan UDPmessage_order)
 
 	//binding channels and ports
 	go bcast.Transmitter(get_order_port, net_send_new_order)
