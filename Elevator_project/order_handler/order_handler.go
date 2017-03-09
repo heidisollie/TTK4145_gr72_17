@@ -35,7 +35,7 @@ func is_duplicate(order structs.Order, OrderQueue []structs.Order) bool {
 func get_new_order(OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) {
 	for _, order := range OrderQueue {
 		if order.IP == localIP {
-			fmt.Printf("Sending new target floor from get_new_order\n")
+			fmt.Printf("Order handler: Sending new target floor from get_new_order\n")
 			new_target_floor <- OrderQueue[0].Floor
 		}
 	}
@@ -83,10 +83,10 @@ func remove_order(order structs.Order, OrderQueue []structs.Order) []structs.Ord
 func remove_all(floor int, elev_send_remove_order chan<- structs.Order, OrderQueue []structs.Order) []structs.Order {
 	for _, order := range OrderQueue {
 		if order.Floor == floor {
-			fmt.Printf("Found order in floor, removing\n")
-			fmt.Printf("Floor: %d\n", order.Floor)
+			fmt.Printf("Order handler: Found order in floor, removing\n")
+			fmt.Printf("Order handler: Floor: %d\n", order.Floor)
 			OrderQueue = remove_order(order, OrderQueue)
-			//elev_send_remove_order <- order
+			elev_send_remove_order <- order
 		}
 	}
 	return OrderQueue
@@ -118,35 +118,41 @@ func Order_handler_init(OrderQueue []structs.Order,
 	for {
 		select {
 		case floor := <-floor_completed:
-			fmt.Printf("Floor completed message received\n")
+			fmt.Printf("Order handler: Floor completed message received\n")
 			OrderQueue = remove_all(floor, elev_send_remove_order, OrderQueue)
-			fmt.Printf("Removed from order queue\n")
+			fmt.Printf("Order handler: Removed from order queue\n")
 			if len(OrderQueue) != 0 {
 				printOrderQueue(OrderQueue)
-				fmt.Printf("Retrieving new order\n")
+				fmt.Printf("Order handler: Retrieving new order\n")
 				get_new_order(OrderQueue, new_target_floor, localIP)
 			}
 
 		case order_button := <-button_event:
+			fmt.Printf("Order handler: Received button event\n")
 			if order_button.Type == driver.ButtonCallCommand {
+				fmt.Printf("Order handler: Button pressed is command button\n")
 				new_order := structs.Order{Type: order_button.Type, Floor: order_button.Floor, Internal: true, IP: localIP}
 				OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
 
 			} else { // if external, send to order_distribution
 				new_order := structs.Order{Type: order_button.Type, Floor: order_button.Floor, Internal: false, IP: localIP}
-				newOrder <- new_order
+				fmt.Printf("Order handler: Sending new order to network\n")
 				elev_send_new_order <- new_order // for å sende til network
+				fmt.Printf("Order handler: Sending new order to order_dist\n")
+				newOrder <- new_order
+
 			}
 		case new_order := <-assignedNewOrder:
-			fmt.Printf("Received new order from ord_dist\n")
+			fmt.Printf("Order handler: Received new order from ord_dist\n")
 			OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
-			fmt.Printf("Added new order in Order Queue\n")
+			fmt.Printf("Order handler: Added new order in Order Queue\n")
 
 		case order := <-elev_receive_remove_order:
 			OrderQueue = remove_order(order, OrderQueue)
 
 		case new_order := <-elev_receive_new_order:
-			OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
+			fmt.Printf("Order handler: Adding external order to our queue")
+			OrderQueue = add_order(new_order, OrderQueue, new_target_floor, new_order.IP)
 		default:
 			other_orders_in_dir(OrderQueue, new_target_floor)
 		}

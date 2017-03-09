@@ -26,6 +26,7 @@ type Cost struct {
 }
 
 	
+const NUMELEV = 3
 
 func Dummy_func() {
 

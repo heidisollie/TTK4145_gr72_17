@@ -20,7 +20,7 @@ const RPort = 13034
 type UDPMSG_cost struct {
 	Adress string
 	Cost Cost
-	iter int
+	Iter int
 	
 }
 
@@ -111,3 +111,4 @@ func main() {
 		}
 	}
 }
+\

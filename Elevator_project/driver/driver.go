@@ -98,9 +98,11 @@ func EventListener(button_event chan OrderButton, floor_event chan int) {
 }
 func OpenCloseDoor() {
 	door_timer := time.NewTimer(door_period)
+	fmt.Printf("Opening doors\n")
 	SetDoorOpenLamp(1)
 	<-door_timer.C
 	SetDoorOpenLamp(0)
+	fmt.Printf("Closing doors\n")
 }
 
 func ClearAllButtonLamps() {
