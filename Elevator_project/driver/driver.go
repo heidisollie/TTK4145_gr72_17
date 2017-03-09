@@ -66,9 +66,8 @@ func EventListener(button_event chan OrderButton, floor_event chan int) {
 		if floorSignal != lastPassedFloor && floorSignal != -1 {
 			floor_event <- floorSignal
 			lastPassedFloor = floorSignal
-			fmt.Println(floorSignal)
 			for button := ButtonCallDown; int(button) < NumButtons; button++ {
-				SetButtonLamp(button, floorSignal, 0)
+				//SetButtonLamp(button, floorSignal, 0)
 				buttonWasActive[floorSignal][button] = GetButtonSignal(button, floorSignal)
 			}
 		}
@@ -85,7 +84,7 @@ func EventListener(button_event chan OrderButton, floor_event chan int) {
 				if buttonSignal == 1 && (buttonWasActive[floor][button] == 0) {
 					button_event <- OrderButton{Type: button, Floor: floor}
 					buttonWasActive[floor][button] = GetButtonSignal(button, floor)
-					SetButtonLamp(button, floor, 1)
+					//SetButtonLamp(button, floor, 1)
 					for i := 0; i < NumFloors; i++ {
 						fmt.Print(buttonWasActive[i])
 						fmt.Printf("\n")

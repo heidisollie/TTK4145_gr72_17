@@ -22,7 +22,6 @@ type Order struct {
 type Cost struct {
 	Cost_value    int
 	Current_order Order
-	IP            string
 }
 
 	

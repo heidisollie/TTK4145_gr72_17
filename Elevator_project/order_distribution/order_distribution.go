@@ -29,9 +29,7 @@ func cost_function(new_order structs.Order) int {
 			cost_value += 75
 		}
 	}
-	fmt.Print(localState.ReadLocalState().Last_passed_floor)
-	
-	fmt.Printf("Order dist: State: %d, %d \n", localState.ReadLocalState().Last_passed_floor, localState.ReadLocalState().Current_direction)
+
 
 	return cost_value
 }
@@ -43,10 +41,13 @@ func findSmallestScore(list [structs.NUMELEV]structs.Cost) structs.Cost {
 			list[i] = list[i+1]
 			list [i+1] = temp
 		}
-		if list[0] == list[1] {
-			if (SplitIP(list[0].IP) < SplitIP(list[1].IP)){
+		if list[0].Cost_value == list[1].Cost_value {
+			if (SplitIP(list[0].Current_order.IP) < SplitIP(list[1].Current_order.IP)){
+				fmt.Printf("The winner is: %s \n", list[0].Current_order.IP)
 				return list[0]
+
 			} else {
+				fmt.Printf("The winner is: %s \n", list[1].Current_order.IP)
 				return list[1]
 			}
 		}
@@ -66,7 +67,8 @@ func SplitIP(IP string) string {
 
 //Sends order to order_handler of our cost is the lowest. If tie, picks the one with lower IP
 func action_select(assignedNewOrder chan<- structs.Order, elev_receive_cost_value <-chan structs.Cost, number_of_peers int, cost structs.Cost, localIP string) {
-	filler_cost := structs.Cost{99999, cost.Current_order, cost.IP}
+	fmt.Printf("In action select: number of peers %d\n", number_of_peers)
+	filler_cost := structs.Cost{99999, cost.Current_order}
 	var cost_list [structs.NUMELEV]structs.Cost
 	for i := 0; i < structs.NUMELEV; i++ {
 		cost_list[i] = filler_cost
@@ -88,15 +90,24 @@ func action_select(assignedNewOrder chan<- structs.Order, elev_receive_cost_valu
 		cost_list[2] = new_cost2
 	}
 
-
 	lowestScore := findSmallestScore(cost_list)
 
-	fmt.Printf("ORDER DIST: Cost of lowest score: %d ----------------------------------------------- \n", lowestScore.Cost_value)
-	if lowestScore.IP == localIP {
-		fmt.Printf("Order_dist: Assigning new order")
-		assignedNewOrder <- cost.Current_order
-	}
+	// IP ADDRESS OF COST AND ORDER ARE DIFFERENT
+	fmt.Printf("The not-lowest score is:  %d \n", cost_list[1].Cost_value)
+	fmt.Printf("The IP address of not-lowest cost value: %s \n", cost_list[1].Current_order.IP)
+
+	fmt.Printf("The lowest score is:  %d \n", lowestScore.Cost_value)
+	fmt.Printf("The IP address of lowest cost value: %s \n", lowestScore.Current_order.IP)
+	
+	//We want to change the evaluated order to contain the IP adress of the winning elevator
+
+
+	assignedNewOrder <- lowestScore.Current_order
+
+
+
 }
+
 
 
 func Order_dist_init(localIP string,
@@ -115,10 +126,11 @@ func Order_dist_init(localIP string,
 		case current_new_order := <-new_order:
 			fmt.Printf("Order dist: Received new order\n")
 			//Kjører kost funksjon og avgjør om den får bestillingen
-			current_cost := structs.Cost{Cost_value: cost_function(current_new_order), Current_order: current_new_order, IP: localIP}
+			current_new_order.IP = localIP
+			current_cost := structs.Cost{Cost_value: cost_function(current_new_order), Current_order: current_new_order}
 			fmt.Printf("Order dist: Cost value: %d\n", current_cost.Cost_value)
 
-			//elev_send_cost_value <- current_cost
+			elev_send_cost_value <- current_cost
 
 			//Ta inn kost verdi fra nettverkskanal og kjøre action_select
 			action_select(assigned_new_order, elev_receive_cost_value, peers, current_cost, localIP)

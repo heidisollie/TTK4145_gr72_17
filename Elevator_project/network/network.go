@@ -97,13 +97,15 @@ func TransmitMsg(localIP string,
 	
 			case msg := <-elev_send_cost_value:
 				fmt.Printf("BROADCASTING COST VALUE\n")
+				msg.Current_order.IP = localIP
 				message := UDPmessage_cost{Address: localIP, Data: msg}
 				net_send_cost_value <- message
 	
 		}
 	}
 }
-func ReceiveMsg(elev_receive_cost_value chan<- Cost,
+func ReceiveMsg(localIP string,
+	elev_receive_cost_value chan<- Cost,
 	elev_receive_new_order chan<- Order,
 	elev_receive_remove_order chan<- Order) {
 
@@ -120,17 +122,27 @@ func ReceiveMsg(elev_receive_cost_value chan<- Cost,
 
 	for {
 		select {
-	
 			case msg := <-net_receive_new_order:
-				elev_receive_new_order <- msg.Data
-				fmt.Printf("RECEIVING NEW ORDER\n")
+				if msg.Address != localIP {
+					fmt.Printf("RECEIVING NEW ORDER\n")
+					msg.Data.IP = msg.Address
+					fmt.Printf("ADDRESS1: %S\n", msg.Data.IP)
+					elev_receive_new_order <- msg.Data
+				}
 			case msg := <-net_receive_remove_order:
-				elev_receive_remove_order <- msg.Data
-				fmt.Printf("RECEIVING REMOVE ORDER\n")
+				if msg.Address != localIP {
+					fmt.Printf("RECEIVING REMOVE ORDER\n")
+					msg.Data.IP = msg.Address
+					fmt.Printf("ADDRESS2: %S\n", msg.Data.IP)
+					elev_receive_remove_order <- msg.Data
+				}
 			case msg := <-net_receive_cost_value:
-				elev_receive_cost_value <- msg.Data	
-				fmt.Printf("RECEIVING COST VALUE\n")
-	
+				if msg.Address != localIP {
+					fmt.Printf("RECEIVING COST VALUE\n")
+					msg.Data.Current_order.IP = msg.Address
+					fmt.Printf("ADDRESS: %S\n", msg.Data.Current_order.IP)
+					elev_receive_cost_value <- msg.Data	
+				}		
 		}
 	}
 
@@ -152,7 +164,7 @@ func UDP_init(
 
 	go TransmitMsg(localIP, elev_send_cost_value, elev_send_new_order, elev_send_remove_order)
 
-	go ReceiveMsg(elev_receive_cost_value, elev_receive_new_order, elev_receive_remove_order)
+	go ReceiveMsg(localIP, elev_receive_cost_value, elev_receive_new_order, elev_receive_remove_order)
 
 }
 
