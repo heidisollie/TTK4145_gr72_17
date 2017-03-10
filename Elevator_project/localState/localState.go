@@ -23,5 +23,6 @@ func ChangeLocalState_flr(new_floor int){
 }
 
 func ChangeLocalState_dir(new_dir driver.MotorDirection){
+	driver.SetMotorDirection(new_dir)
 	localElevator.Current_direction = new_dir
 }

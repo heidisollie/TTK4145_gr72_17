@@ -13,17 +13,17 @@ import (
 )
 
 const (
-	port_peer          = 15657
-	get_order_port     = 20023
-	cost_value_port    = 37714
+	port_peer          = 37899
+	get_order_port     = 37776
+	state_port    = 37714
 	remove_order_port  = 37715
 	backup_port        = 37716
 	broadcast_interval = 1 * time.Second
 )
 
-type UDPmessage_cost struct {
+type UDPmessage_state struct {
 	Address string
-	Data    Cost
+	Data    Elev_state
 }
 
 type UDPmessage_order struct {
@@ -69,18 +69,18 @@ func UDPPeerBroadcast(id string, number_of_peers chan<- int) {
 
 
 func TransmitMsg(localIP string,
-	elev_send_cost_value <-chan Cost,
+	elev_send_state <-chan Cost,
 	elev_send_new_order <-chan Order,
 	elev_send_remove_order <-chan Order ){
 
-	net_send_cost_value := make(chan UDPmessage_cost, 100)
+	net_send_state := make(chan UDPmessage_cost, 100)
 	net_send_new_order := make(chan UDPmessage_order, 100)
 	net_send_remove_order := make(chan UDPmessage_order, 100)
 
 
 	go bcast.Transmitter(get_order_port, net_send_new_order)
 	go bcast.Transmitter(remove_order_port, net_send_remove_order)
-	go bcast.Transmitter(cost_value_port, net_send_cost_value)
+	go bcast.Transmitter(state_port, net_send_state)
 
 	for {
 		select {
@@ -95,22 +95,22 @@ func TransmitMsg(localIP string,
 				net_send_remove_order <- message
 				fmt.Printf("BROADCASTING REMOVE ORDER\n")
 	
-			case msg := <-elev_send_cost_value:
-				fmt.Printf("BROADCASTING COST VALUE\n")
-				msg.Current_order.IP = localIP
-				message := UDPmessage_cost{Address: localIP, Data: msg}
-				net_send_cost_value <- message
+			case msg := <-elev_send_state:
+				fmt.Printf("BROADCASTING STATE\n")
+				msg.IP = localIP
+				message := UDPmessage_state{Address: localIP, Data: msg}
+				net_send_state <- message
 	
 		}
 	}
 }
 func ReceiveMsg(localIP string,
-	elev_receive_cost_value chan<- Cost,
+	elev_receive_state chan<- Cost,
 	elev_receive_new_order chan<- Order,
 	elev_receive_remove_order chan<- Order) {
 
 
-	net_receive_cost_value := make(chan UDPmessage_cost, 100)
+	net_receive_state := make(chan UDPmessage_cost, 100)
 	net_receive_new_order := make(chan UDPmessage_order, 100)
 	net_receive_remove_order := make(chan UDPmessage_order, 100)
 
@@ -118,7 +118,7 @@ func ReceiveMsg(localIP string,
 
 	go bcast.Receiver(get_order_port, net_receive_new_order)
 	go bcast.Receiver(remove_order_port, net_receive_remove_order)
-	go bcast.Receiver(cost_value_port, net_receive_cost_value)
+	go bcast.Receiver(state_port, net_receive_state)
 
 	for {
 		select {
@@ -126,34 +126,34 @@ func ReceiveMsg(localIP string,
 				if msg.Address != localIP {
 					fmt.Printf("RECEIVING NEW ORDER\n")
 					msg.Data.IP = msg.Address
-					fmt.Printf("ADDRESS1: %S\n", msg.Data.IP)
+					fmt.Printf("ADDRESS1: %s \n", msg.Data.IP)
 					elev_receive_new_order <- msg.Data
 				}
 			case msg := <-net_receive_remove_order:
 				if msg.Address != localIP {
 					fmt.Printf("RECEIVING REMOVE ORDER\n")
 					msg.Data.IP = msg.Address
-					fmt.Printf("ADDRESS2: %S\n", msg.Data.IP)
+					fmt.Printf("ADDRESS2: %s \n", msg.Data.IP)
 					elev_receive_remove_order <- msg.Data
 				}
-			case msg := <-net_receive_cost_value:
+			case msg := <-net_receive_state:
 				if msg.Address != localIP {
-					fmt.Printf("RECEIVING COST VALUE\n")
+					fmt.Printf("RECEIVING STATE\n")
 					msg.Data.Current_order.IP = msg.Address
-					fmt.Printf("ADDRESS: %S\n", msg.Data.Current_order.IP)
-					elev_receive_cost_value <- msg.Data	
+					fmt.Printf("ADDRESS: %s \n", msg.Data.Current_order.IP)
+					elev_receive_state <- msg.Data	
 				}		
 		}
 	}
-
 }
+
 
 func UDP_init(
 	localIP string,
-	elev_receive_cost_value chan<- Cost,
+	elev_receive_state chan<- Elev_state,
 	elev_receive_new_order chan<- Order,
 	elev_receive_remove_order chan<- Order,
-	elev_send_cost_value <-chan Cost,
+	elev_send_state <-chan Elev_state,
 	elev_send_new_order <-chan Order,
 	elev_send_remove_order <-chan Order,
 	number_of_peers chan<- int) {
@@ -162,9 +162,9 @@ func UDP_init(
 
 	go UDPPeerBroadcast(localIP, number_of_peers)
 
-	go TransmitMsg(localIP, elev_send_cost_value, elev_send_new_order, elev_send_remove_order)
+	go TransmitMsg(localIP, elev_send_state, elev_send_new_order, elev_send_remove_order)
 
-	go ReceiveMsg(localIP, elev_receive_cost_value, elev_receive_new_order, elev_receive_remove_order)
+	go ReceiveMsg(localIP, elev_receive_state, elev_receive_new_order, elev_receive_remove_order)
 
 }
 
@@ -175,10 +175,10 @@ func UDP_init(
 
 /*
 func UDP_init(
-	elev_receive_cost_value chan<- Cost,
+	elev_receive_state chan<- Cost,
 	elev_receive_new_order chan<- Order,
 	elev_receive_remove_order chan<- Order,
-	elev_send_cost_value <-chan Cost,
+	elev_send_state <-chan Cost,
 	elev_send_new_order <-chan Order,
 	elev_send_remove_order <-chan Order) {
 
@@ -201,11 +201,11 @@ func UDP_init(
 	localIP = "3456"
 	id = localIP
 	//channels for network
-	net_send_cost_value := make(chan<- UDPmessage_cost)
+	net_send_state := make(chan<- UDPmessage_cost)
 	net_send_new_order := make(chan<- UDPmessage_order)
 	net_send_remove_order := make(chan<- UDPmessage_order)
 
-	net_receive_cost_value := make(<-chan UDPmessage_cost)
+	net_receive_state := make(<-chan UDPmessage_cost)
 	net_receive_new_order := make(<-chan UDPmessage_order)
 	net_receive_remove_order := make(<-chan UDPmessage_order)
 
@@ -218,11 +218,11 @@ func UDP_init(
 
 	go bcast.Transmitter(get_order_port, net_send_new_order)
 	go bcast.Transmitter(remove_order_port, net_send_remove_order)
-	go bcast.Transmitter(cost_value_port, net_send_cost_value)
+	go bcast.Transmitter(state_port, net_send_state)
 
 	go bcast.Receiver(get_order_port, net_receive_new_order)
 	go bcast.Receiver(remove_order_port, net_receive_remove_order)
-	go bcast.Receiver(cost_value_port, net_receive_cost_value)
+	go bcast.Receiver(state_port, net_receive_state)
 
 	//send_ticker := time.NewTicker(broadcast_interval) // bruke dette?
 
@@ -246,11 +246,11 @@ func UDP_init(
 				time.Sleep(broadcast_interval)
 			}
 
-		case msg := <-elev_send_cost_value:
+		case msg := <-elev_send_state:
 			fmt.Printf("Broadcasting cost value\n")
 			for {
 				message := UDPmessage_cost{Address: localIP, Data: msg}
-				net_send_cost_value <- message
+				net_send_state <- message
 				time.Sleep(broadcast_interval)
 			}
 
@@ -263,9 +263,9 @@ func UDP_init(
 			fmt.Printf("Received remove order from NW\n")
 			elev_receive_remove_order <- msg.Data
 
-		case msg := <-net_receive_cost_value:
+		case msg := <-net_receive_state:
 			fmt.Printf("Received cost value from NW\n")
-			elev_receive_cost_value <- msg.Data
+			elev_receive_state <- msg.Data
 
 		}
 	}

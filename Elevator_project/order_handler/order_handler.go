@@ -51,20 +51,19 @@ func printOrderQueue(OrderQueue []structs.Order) {
 func get_new_order(OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) {
 	for index, order := range OrderQueue {
 		if order.IP == localIP {
-			fmt.Printf("Order handler: Sending new target floor from get_new_order\n")
+			fmt.Printf("Order.IP == localIP\n")
 			new_target_floor <- OrderQueue[index].Floor
 			break
 		}
 	}
 }
 
-
 func add_order(order structs.Order, OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) []structs.Order {
 	if is_duplicate(order, OrderQueue) == false {
+		fmt.Printf("Adding new order\n")
 		OrderQueue = append(OrderQueue, order)
 		printOrderQueue(OrderQueue)
 		get_new_order(OrderQueue, new_target_floor, localIP)
-
 		driver.SetButtonLamp(order.Type, order.Floor, 1)
 	}
 	return OrderQueue
@@ -103,11 +102,13 @@ func remove_all(floor int, elev_send_remove_order chan<- structs.Order, OrderQue
 	for _, order := range OrderQueue {
 		if order.Floor == floor {
 			fmt.Printf("Order handler: Found order in floor, removing\n")
-			fmt.Printf("Order handler: Floor: %d\n", order.Floor)
+			fmt.Printf("Order handler: Floor: %d %s\n", order.Floor, order.Type)
 			OrderQueue = remove_order(order, OrderQueue)
+			driver.SetButtonLamp(order.Type, order.Floor, 0)
+			printOrderQueue(OrderQueue)
 			if order.Internal == false {
 			elev_send_remove_order <- order
-		}
+			}
 		}
 	}
 	return OrderQueue
@@ -117,8 +118,7 @@ func remove_all(floor int, elev_send_remove_order chan<- structs.Order, OrderQue
 // Vi gir objektet State til to moduler samtidig uten at de returnerer verdien når den blir endret.
 // Hvordan vet vi da at State objektet til modulene er oppdatert at all times?????
 
-func Order_handler_init(OrderQueue []structs.Order,
-	localIP string,
+func Order_handler_init(localIP string,
 	floor_completed <-chan int,
 	button_event <-chan driver.OrderButton,
 	assignedNewOrder <-chan structs.Order,
@@ -128,6 +128,9 @@ func Order_handler_init(OrderQueue []structs.Order,
 	elev_receive_new_order <-chan structs.Order,
 	elev_receive_remove_order <-chan structs.Order,
 	new_target_floor chan<- int) {
+
+	var OrderQueue []structs.Order
+
 
 	for {
 		select {
@@ -142,7 +145,6 @@ func Order_handler_init(OrderQueue []structs.Order,
 			}
 
 		case order_button := <-button_event:
-			fmt.Printf("Order handler: Received button event\n")
 			if order_button.Type == driver.ButtonCallCommand {
 				//fmt.Printf("Order handler: Button pressed is command button\n")
 				new_order := structs.Order{Type: order_button.Type, Floor: order_button.Floor, Internal: true, IP: localIP}
@@ -150,7 +152,6 @@ func Order_handler_init(OrderQueue []structs.Order,
 
 			} else { // if external, send to order_distribution
 				new_order := structs.Order{Type: order_button.Type, Floor: order_button.Floor, Internal: false, IP: localIP}
-				fmt.Printf("Order handler: Sending new order to network\n")
 				elev_send_new_order <- new_order // for å sende til network
 				//fmt.Printf("Order handler: Sending new order to order_dist\n")
 				newOrder <- new_order
@@ -164,7 +165,8 @@ func Order_handler_init(OrderQueue []structs.Order,
 
 		case order := <-elev_receive_remove_order:
 			OrderQueue = remove_order(order, OrderQueue)
-
+			printOrderQueue(OrderQueue)
+			driver.SetButtonLamp(order.Type, order.Floor, 0)	
 		case new_order := <-elev_receive_new_order:
 			fmt.Printf("Order handler: Adding external order to our queue\n")
 			newOrder <- new_order

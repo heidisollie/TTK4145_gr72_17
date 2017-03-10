@@ -6,21 +6,25 @@ import (
 	//"strconv"
 	"../localState"
 	"strings"
+	"sort"
 )
 
 
-func cost_function(new_order structs.Order) int {
+func cost_function(new_order structs.Order, state structs.Elev_state) int {
 	cost_value := 0
-	diff := new_order.Floor - localState.ReadLocalState().Last_passed_floor
+
+	diff := new_order.Floor - state.Last_passed_floor
+
 
 	//Turn reward
-	if (localState.ReadLocalState().Current_direction == 1 && diff > 0) || (localState.ReadLocalState().Current_direction == -1 && diff < 0) {
+	if (state.Current_direction == 1 && diff > 0) || (state.Current_direction == -1 && diff < 0) {
 		cost_value -= 50
 	//Turn penalty
-	} else if (localState.ReadLocalState().Current_direction == 1 && diff < 0) || (localState.ReadLocalState().Current_direction == -1 && diff > 0) {
+	} else if (state.Current_direction == 1 && diff < 0) || (state.Current_direction == -1 && diff > 0) {
 		cost_value += 225
+
 	//Distance
-	} else if (localState.ReadLocalState().Current_direction == 0) {
+	} else if (state.Current_direction == 0) {
 		if (diff == -1) || (diff == 1) {
 			cost_value += 25		
 		} else if (diff == -2) || (diff == 2) {
@@ -28,31 +32,9 @@ func cost_function(new_order structs.Order) int {
 		} else if (diff == -3) || (diff == 3) {
 			cost_value += 75
 		}
-	}
-
+	} 
 
 	return cost_value
-}
-
-func findSmallestScore(list [structs.NUMELEV]structs.Cost) structs.Cost {
-	for i:=0; i<len(list)-1; i++ {
-		if list[i+1].Cost_value < list[i].Cost_value {
-			temp := list[i]
-			list[i] = list[i+1]
-			list [i+1] = temp
-		}
-		if list[0].Cost_value == list[1].Cost_value {
-			if (SplitIP(list[0].Current_order.IP) < SplitIP(list[1].Current_order.IP)){
-				fmt.Printf("The winner is: %s \n", list[0].Current_order.IP)
-				return list[0]
-
-			} else {
-				fmt.Printf("The winner is: %s \n", list[1].Current_order.IP)
-				return list[1]
-			}
-		}
-	} 
-	return list[0]
 }
 
 
@@ -66,31 +48,30 @@ func SplitIP(IP string) string {
 
 
 //Sends order to order_handler of our cost is the lowest. If tie, picks the one with lower IP
-func action_select(assignedNewOrder chan<- structs.Order, elev_receive_cost_value <-chan structs.Cost, number_of_peers int, cost structs.Cost, localIP string) {
-	fmt.Printf("In action select: number of peers %d\n", number_of_peers)
-	filler_cost := structs.Cost{99999, cost.Current_order}
-	var cost_list [structs.NUMELEV]structs.Cost
-	for i := 0; i < structs.NUMELEV; i++ {
-		cost_list[i] = filler_cost
+func action_select(assignedNewOrder chan<- structs.Order, number_of_peers int, current_new_order structs.Order, localIP string, State_controller [string]structs.Elev_state) {
+	
+	const n = number_of_peers
+
+	cost_list := [n]structs.Cost
+	i := 0
+	for index, state := range State_controller {
+		cost_value = cost_function(current_new_order, state)
+		current_new_order.IP = index
+		cost := Cost{cost_value, current_new_order}
+		cost_list[i] = cost_function(current_new_order, state)
+		i++
 	}
 
-	switch (number_of_peers){
+	smallestcost = 9999999
+	for index, cost := range cost_list {
+		if cost_list[index] < smallestcost {
+				smallestcost = cost_list[index]
+		}
 
-	case 1:
-		cost_list[0] = cost
-	case 2:
-		new_cost := <-elev_receive_cost_value
-		cost_list[0] = cost
-		cost_list[1] = new_cost
-	case 3:
-		new_cost := <-elev_receive_cost_value
-		new_cost2 := <-elev_receive_cost_value
-		cost_list[0] = cost
-		cost_list[1] = new_cost
-		cost_list[2] = new_cost2
-	}
+	} 
 
-	lowestScore := findSmallestScore(cost_list)
+	sort.Ints(cost_list)
+
 
 	// IP ADDRESS OF COST AND ORDER ARE DIFFERENT
 	fmt.Printf("The not-lowest score is:  %d \n", cost_list[1].Cost_value)
@@ -101,10 +82,7 @@ func action_select(assignedNewOrder chan<- structs.Order, elev_receive_cost_valu
 	
 	//We want to change the evaluated order to contain the IP adress of the winning elevator
 
-
 	assignedNewOrder <- lowestScore.Current_order
-
-
 
 }
 
@@ -113,28 +91,24 @@ func action_select(assignedNewOrder chan<- structs.Order, elev_receive_cost_valu
 func Order_dist_init(localIP string,
 	new_order <-chan structs.Order,
 	assigned_new_order chan<- structs.Order,
-	elev_receive_cost_value <-chan structs.Cost,
-	elev_send_cost_value chan<- structs.Cost,
+	elev_receive_state <-chan structs.Cost,
 	number_of_peers <-chan int) {
 
 	var peers int
+	var State_controller := make([string]structs.Elev_state)
+
 
 	for {
 		select {
+
+		case state_update := elev_receive_state:
+			State_controller[state_update.IP] = state_update
+
 		case i := <- number_of_peers:
 				peers = i
 		case current_new_order := <-new_order:
-			fmt.Printf("Order dist: Received new order\n")
-			//Kjører kost funksjon og avgjør om den får bestillingen
-			current_new_order.IP = localIP
-			current_cost := structs.Cost{Cost_value: cost_function(current_new_order), Current_order: current_new_order}
-			fmt.Printf("Order dist: Cost value: %d\n", current_cost.Cost_value)
 
-			elev_send_cost_value <- current_cost
-
-			//Ta inn kost verdi fra nettverkskanal og kjøre action_select
-			action_select(assigned_new_order, elev_receive_cost_value, peers, current_cost, localIP)
-
+			action_select(assigned_new_order, peers, current_new_order, localIP, State_controller)
 		}
 	}
 }
