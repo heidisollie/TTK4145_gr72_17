@@ -13,20 +13,20 @@ import (
 )
 
 const (
-	port_peer          = 37899
-	get_order_port     = 37776
-	state_port    = 37714
-	remove_order_port  = 37715
-	backup_port        = 37716
-	broadcast_interval = 1 * time.Second
+	portPeer          = 37899
+	newOrderPort      = 37776
+	removeOrderPort   = 37715
+	statePort         = 37714
+	backupPort        = 37716
+	broadcastInterval = 1 * time.Second
 )
 
-type UDPmessage_state struct {
+type UDPMessageState struct {
 	Address string
-	Data    structs.Elev_state
+	Data    structs.ElevState
 }
 
-type UDPmessage_order struct {
+type UDPMessageOrder struct {
 	Address string
 	Data    structs.Order
 }
@@ -48,12 +48,12 @@ func GetIP() string {
 }
 
 
-func UDPPeerBroadcast(id string, number_of_peers chan<- int) {
+func UDPPeerBroadcast(id string, numberOfPeers chan<- int) {
 	peerUpdateCh := make(chan peers.PeerUpdate)
 	peerTxEnable := make(chan bool)
 
-	go peers.Transmitter(port_peer, id, peerTxEnable)
-	go peers.Receiver(port_peer, peerUpdateCh)
+	go peers.Transmitter(portPeer, id, peerTxEnable)
+	go peers.Receiver(portPeer, peerUpdateCh)
 
 	for {
 		select {
@@ -62,109 +62,109 @@ func UDPPeerBroadcast(id string, number_of_peers chan<- int) {
 			fmt.Printf("  Peers:    %q\n", p.Peers)
 			fmt.Printf("  New:      %q\n", p.New)
 			fmt.Printf("  Lost:     %q\n", p.Lost)
-			number_of_peers <- len(p.Peers)
+			numberOfPeers <- len(p.Peers)
 		}
 	}
 }
 
 
-func TransmitMsg(localIP string,
-	elev_send_state <-chan structs.Elev_state,
-	elev_send_new_order <-chan structs.Order,
-	elev_send_remove_order <-chan structs.Order ){
+func TransmitMessage(localIP string,
+	elevSendState <-chan structs.ElevState,
+	elevSendNewOrder <-chan structs.Order,
+	elevSendRemoveOrder <-chan structs.Order ){
 
-	net_send_state := make(chan UDPmessage_state, 100)
-	net_send_new_order := make(chan UDPmessage_order, 100)
-	net_send_remove_order := make(chan UDPmessage_order, 100)
+	netSendState := make(chan UDPMessageState, 100)
+	netSendNewOrder := make(chan UDPMessageOrder, 100)
+	netSendRemoveOrder := make(chan UDPMessageOrder, 100)
 
+	go bcast.Transmitter(statePort, netSendState)
+	go bcast.Transmitter(newOrderPort, netSendNewOrder)
+	go bcast.Transmitter(removeOrderPort, netSendRemoveOrder)
 
-	go bcast.Transmitter(get_order_port, net_send_new_order)
-	go bcast.Transmitter(remove_order_port, net_send_remove_order)
-	go bcast.Transmitter(state_port, net_send_state)
 
 	for {
 		select {
-	
-			case msg := <-elev_send_new_order:
-				message := UDPmessage_order{Address: localIP, Data: msg}
-				net_send_new_order <- message
+
+
+			case msg := <-elevSendState:
+				msg.IP = localIP
+				message := UDPMessageState{Address: localIP, Data: msg}
+				netSendState <- message
+				fmt.Printf("BROADCASTING STATE\n")
+			case msg := <-elevSendNewOrder:
+				message := UDPMessageOrder{Address: localIP, Data: msg}
+				netSendNewOrder <- message
 				fmt.Printf("BROADCASTING NEW ORDER\n")
 	
-			case msg := <-elev_send_remove_order:
-				message := UDPmessage_order{Address: localIP, Data: msg}
-				net_send_remove_order <- message
+			case msg := <-elevSendRemoveOrder:
+				message := UDPMessageOrder{Address: localIP, Data: msg}
+				netSendRemoveOrder <- message
 				fmt.Printf("BROADCASTING REMOVE ORDER\n")
-	
-			case msg := <-elev_send_state:
-				fmt.Printf("BROADCASTING STATE\n")
-				msg.IP = localIP
-				message := UDPmessage_state{Address: localIP, Data: msg}
-				net_send_state <- message
+
 	
 		}
 	}
 }
-func ReceiveMsg(localIP string,
-	elev_receive_state chan<- structs.Elev_state,
-	elev_receive_new_order chan<- structs.Order,
-	elev_receive_remove_order chan<- structs.Order) {
+func ReceiveMessage(localIP string,
+	elevReceiveState chan<- structs.ElevState,
+	elevReceiveNewOrder chan<- structs.Order,
+	elevReceiveRemoveOrder chan<- structs.Order) {
 
 
-	net_receive_state := make(chan UDPmessage_state, 100)
-	net_receive_new_order := make(chan UDPmessage_order, 100)
-	net_receive_remove_order := make(chan UDPmessage_order, 100)
+	netReceiveState := make(chan UDPMessageState, 100)
+	netReceiveNewOrder := make(chan UDPMessageOrder, 100)
+	netReceiveRemoveOrder := make(chan UDPMessageOrder, 100)
 
 
+	go bcast.Receiver(statePort, netReceiveState)
+	go bcast.Receiver(newOrderPort, netReceiveNewOrder)
+	go bcast.Receiver(removeOrderPort, netReceiveRemoveOrder)
 
-	go bcast.Receiver(get_order_port, net_receive_new_order)
-	go bcast.Receiver(remove_order_port, net_receive_remove_order)
-	go bcast.Receiver(state_port, net_receive_state)
 
 	for {
 		select {
-			case msg := <-net_receive_new_order:
-				if msg.Address != localIP {
-					fmt.Printf("RECEIVING NEW ORDER\n")
-					msg.Data.IP = msg.Address
-					fmt.Printf("ADDRESS1: %s \n", msg.Data.IP)
-					elev_receive_new_order <- msg.Data
-				}
-			case msg := <-net_receive_remove_order:
-				if msg.Address != localIP {
-					fmt.Printf("RECEIVING REMOVE ORDER\n")
-					msg.Data.IP = msg.Address
-					fmt.Printf("ADDRESS2: %s \n", msg.Data.IP)
-					elev_receive_remove_order <- msg.Data
-				}
-			case msg := <-net_receive_state:
+
+			case msg := <-netReceiveState:
 				if msg.Address != localIP {
 					fmt.Printf("RECEIVING STATE\n")
 					msg.Data.IP = msg.Address
 					fmt.Printf("ADDRESS: %s \n", msg.Data.IP)
-					elev_receive_state <- msg.Data	
-				}		
+					elevReceiveState <- msg.Data	
+				}	
+			case msg := <-netReceiveNewOrder:
+				if msg.Address != localIP {
+					fmt.Printf("RECEIVING NEW ORDER\n")
+					msg.Data.IP = msg.Address
+					fmt.Printf("ADDRESS1: %s \n", msg.Data.IP)
+					elevReceiveNewOrder <- msg.Data
+				}
+			case msg := <-netReceiveRemoveOrder:
+				if msg.Address != localIP {
+					fmt.Printf("RECEIVING REMOVE ORDER\n")
+					msg.Data.IP = msg.Address
+					fmt.Printf("ADDRESS2: %s \n", msg.Data.IP)
+					elevReceiveRemoveOrder <- msg.Data
+				}
 		}
 	}
 }
 
 
-func UDP_init(
+func NetworkInit(
 	localIP string,
-	elev_receive_state chan<- structs.Elev_state,
-	elev_receive_new_order chan<- structs.Order,
-	elev_receive_remove_order chan<- structs.Order,
-	elev_send_state <-chan structs.Elev_state,
-	elev_send_new_order <-chan structs.Order,
-	elev_send_remove_order <-chan structs.Order,
-	number_of_peers chan<- int) {
+	elevSendState <-chan structs.ElevState,
+	elevSendNewOrder <-chan structs.Order,
+	elevSendRemoveOrder <-chan structs.Order,
+	elevReceiveState chan<- structs.ElevState,
+	elevReceiveNewOrder chan<- structs.Order,
+	elevReceiveRemoveOrder chan<- structs.Order,
+	numberOfPeers chan<- int) {
 
 	fmt.Printf("Initializing network\n")
 
-	go UDPPeerBroadcast(localIP, number_of_peers)
-
-	go TransmitMsg(localIP, elev_send_state, elev_send_new_order, elev_send_remove_order)
-
-	go ReceiveMsg(localIP, elev_receive_state, elev_receive_new_order, elev_receive_remove_order)
+	go UDPPeerBroadcast(localIP, numberOfPeers)
+	go TransmitMessage(localIP, elevSendState, elevSendNewOrder, elevSendRemoveOrder)
+	go ReceiveMessage(localIP, elevReceiveState, elevReceiveNewOrder, elevReceiveRemoveOrder)
 
 }
 

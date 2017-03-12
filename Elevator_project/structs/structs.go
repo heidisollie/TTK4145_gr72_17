@@ -6,27 +6,27 @@ import (
 
 
 
-type Elev_state struct {
-	Last_passed_floor int
-	Current_direction driver.MotorDirection
+type ElevState struct {
+	LastPassedFloor int
+	CurrentDirection driver.MotorDirection
 	IP                string
 }
 
 type Order struct {
 	Type     driver.ButtonType
 	Floor    int
-	Internal bool
 	IP       string
 }
 
 type Cost struct {
-	Cost_value    int
-	Current_order Order
+	CostValue    int
+	CurrentOrder Order
 }
 
 	
 const NUMELEV = 3
 
+/*
 func Dummy_func() {
 
-}
+}*/

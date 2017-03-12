@@ -7,22 +7,19 @@ import(
 
 
 
+var localElevator structs.ElevState
 
 
 
-var localElevator structs.Elev_state
-
-
-
-func ReadLocalState() structs.Elev_state{
+func ReadLocalState() structs.ElevState{
 	return localElevator
 }
 
-func ChangeLocalState_flr(new_floor int){
-	localElevator.Last_passed_floor = new_floor
+func ChangeLocalState_flr(newFloor int){
+	localElevator.LastPassedFloor = newFloor
 }
 
-func ChangeLocalState_dir(new_dir driver.MotorDirection){
-	driver.SetMotorDirection(new_dir)
-	localElevator.Current_direction = new_dir
+func ChangeLocalState_dir(newDir driver.MotorDirection){
+	driver.SetMotorDirection(newDir)
+	localElevator.CurrentDirection = newDir
 }
