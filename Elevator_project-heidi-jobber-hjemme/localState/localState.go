@@ -8,7 +8,7 @@ import(
 
 
 
-
+//Need to add mutex here, since all modules can access this object
 
 var localElevator structs.Elev_state
 

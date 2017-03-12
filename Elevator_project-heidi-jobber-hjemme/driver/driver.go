@@ -65,6 +65,7 @@ func EventListener(button_event chan OrderButton, floor_event chan int) {
 	for {
 		floorSignal = GetFloorSignal()
 		if floorSignal != lastPassedFloor && floorSignal != -1 {
+			SetFloorIndicator(floorSignal)
 			floor_event <- floorSignal
 			lastPassedFloor = floorSignal
 			for button := ButtonCallDown; int(button) < NumButtons; button++ {

@@ -24,7 +24,7 @@ func main() {
 	localIP = network.GetIP()
 
 
-	new_target_floor := make(chan int, 1)
+	new_current_order := make(chan structs.Order, 1)
 	floor_event := make(chan int)                      //heis ved etasje til order_handler
 	button_event := make(chan driver.OrderButton, 100) //knappetrykk til order_handler
 	//peers := make(chan int)                        //status of peer to peer fra network
@@ -45,7 +45,7 @@ func main() {
 
 	driver.ElevInit()
 	go driver.EventListener(button_event, floor_event)
-	go FSM.FSM_init(floor_event, new_target_floor, floor_completed, elev_receive_state)
+	go FSM.FSM_init(floor_event, new_current_order, floor_completed, elev_receive_state)
 
 	go order_handler.Order_handler_init(localIP,
 		floor_completed,
@@ -56,7 +56,7 @@ func main() {
 		elev_send_remove_order,
 		elev_receive_new_order,
 		elev_receive_remove_order,
-		new_target_floor)
+		new_current_order)
 
 	go network.UDP_init(localIP,
 		elev_receive_state,

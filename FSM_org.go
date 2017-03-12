@@ -9,11 +9,6 @@ import (
 	"sync"
 )
 
-//------------------------------------------------
-
-//--------------------------------------------------
-
-
 const stuck_period = 5 * time.Second
 
 type FSM_state int
@@ -25,11 +20,17 @@ const (
 	stuck  = -1
 )
 
-
+//Not necessary
 var mu sync.Mutex
 	
+// Need to send state every time it changes
 
-func FSM_init(floor_event <-chan int, new_target_floor <-chan int, floor_completed chan<- int, elev_send_state chan<- structs.Elev_state) {
+
+
+func FSM_init(floor_event <-chan int, 
+	new_target_floor <-chan int, 
+	floor_completed chan<- int, 
+	elev_send_state chan<- structs.Elev_state) {
 
 	target_floor := -1
 	FSM_state := idle
@@ -51,7 +52,7 @@ func FSM_init(floor_event <-chan int, new_target_floor <-chan int, floor_complet
 				driver.SetMotorDirection(driver.DirnStop)
 				mu.Lock()
 				localState.ChangeLocalState_dir(driver.DirnStop)
-				elev_send_state <- localState.ReadLocalState()
+				elev_send_state <- ReadLocalState()
 				mu.Unlock()
 				FSM_state = stuck
 			case stuck:
@@ -75,22 +76,22 @@ func FSM_init(floor_event <-chan int, new_target_floor <-chan int, floor_complet
 						driver.SetMotorDirection(driver.DirnDown)
 						mu.Lock()
 						localState.ChangeLocalState_dir(driver.DirnDown)
-						elev_send_state <- localState.ReadLocalState()
+						elev_send_state <- ReadLocalState()
 						mu.Unlock()
 					} else if target_floor > localState.ReadLocalState().Last_passed_floor {
-						mu.Lock()
 						FSM_state = moving
-						mu.Unlock()
 						driver.SetMotorDirection(driver.DirnUp)
+						mu.Lock()
 						localState.ChangeLocalState_dir(driver.DirnUp)
-						elev_send_state <- localState.ReadLocalState()
+						elev_send_state <- ReadLocalState()
+						mu.Unlock()
 					} else {
 						driver.SetMotorDirection(driver.DirnStop)
-						FSM_state = idle
 						mu.Lock()
 						localState.ChangeLocalState_dir(driver.DirnStop)
-						elev_send_state <- localState.ReadLocalState()
+						elev_send_state <- ReadLocalState()
 						mu.Unlock()
+						FSM_state = idle
 						floor_completed <- localState.ReadLocalState().Last_passed_floor
 						driver.OpenCloseDoor()
 						fmt.Print("FSM: [IDLE] Reached target floor\n")
@@ -102,7 +103,7 @@ func FSM_init(floor_event <-chan int, new_target_floor <-chan int, floor_complet
 					driver.SetMotorDirection(driver.DirnStop)
 					mu.Lock()
 					localState.ChangeLocalState_dir(driver.DirnStop)
-					elev_send_state <- localState.ReadLocalState()
+					elev_send_state <- ReadLocalState()
 					mu.Unlock()
 					FSM_state = idle
 					floor_completed <- localState.ReadLocalState().Last_passed_floor
@@ -121,11 +122,14 @@ func FSM_init(floor_event <-chan int, new_target_floor <-chan int, floor_complet
 				driver.SetMotorDirection(driver.DirnStop)
 				mu.Lock()
 				localState.ChangeLocalState_dir(driver.DirnStop)
-				elev_send_state <- localState.ReadLocalState()
+				elev_send_state <- ReadLocalState()
 				mu.Unlock()
 			}
 
+			mu.Lock()
 			localState.ChangeLocalState_flr(floor)
+			elev_send_state <- ReadLocalState()
+			mu.Unlock()
 
 			switch FSM_state {
 			case idle:
@@ -134,32 +138,38 @@ func FSM_init(floor_event <-chan int, new_target_floor <-chan int, floor_complet
 			case moving:
 				fmt.Printf("FSM: CASE [floor event]: STATE [moving], floor: %d\n", floor+1)
 				stuck_timer.Reset(stuck_period)
-
+				mu.Lock() //Read current floor under mutex
+				state_flr := localState.ReadLocalState().Last_passed_floor
+				mu.Unlock()
 				if target_floor == -1 {
 					break
-				} else if target_floor < localState.ReadLocalState().Last_passed_floor {
+				} else if target_floor < state_flr {
 					driver.SetMotorDirection(driver.DirnDown)
 					mu.Lock()
 					localState.ChangeLocalState_dir(driver.DirnDown)
-					elev_send_state <- localState.ReadLocalState()
+					elev_send_state <- ReadLocalState()
 					mu.Unlock()
-				} else if target_floor > localState.ReadLocalState().Last_passed_floor {
+				} else if target_floor > state_flr {
 					driver.SetMotorDirection(driver.DirnUp)
+
 					mu.Lock()
 					localState.ChangeLocalState_dir(driver.DirnUp)
-					elev_send_state <- localState.ReadLocalState()
+					elev_send_state <- ReadLocalState()
 					mu.Unlock()
 				} else {
 					driver.SetMotorDirection(driver.DirnStop)
 					mu.Lock()
 					localState.ChangeLocalState_dir(driver.DirnStop)
-					elev_send_state <- localState.ReadLocalState()
+					elev_send_state <- ReadLocalState()
 					mu.Unlock()
 					stuck_timer.Stop()
 					FSM_state = idle
+					mu.Lock()
 					floor_completed <- localState.ReadLocalState().Last_passed_floor
+					mu.Unlock()
 					driver.OpenCloseDoor()
 				}
+
 			case stuck:
 				fmt.Printf("FSM: STATE [stuck]; cannot reach floor %d\n", floor+1)
 

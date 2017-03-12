@@ -1,7 +1,7 @@
 package network
 
 import (
-	. "../structs"
+	"../structs"
 	"./bcast"
 	"./localip"
 	"./peers"
@@ -23,12 +23,12 @@ const (
 
 type UDPmessage_state struct {
 	Address string
-	Data    Elev_state
+	Data    structs.Elev_state
 }
 
 type UDPmessage_order struct {
 	Address string
-	Data    Order
+	Data    structs.Order
 }
 
 
@@ -69,11 +69,11 @@ func UDPPeerBroadcast(id string, number_of_peers chan<- int) {
 
 
 func TransmitMsg(localIP string,
-	elev_send_state <-chan Cost,
-	elev_send_new_order <-chan Order,
-	elev_send_remove_order <-chan Order ){
+	elev_send_state <-chan structs.Elev_state,
+	elev_send_new_order <-chan structs.Order,
+	elev_send_remove_order <-chan structs.Order ){
 
-	net_send_state := make(chan UDPmessage_cost, 100)
+	net_send_state := make(chan UDPmessage_state, 100)
 	net_send_new_order := make(chan UDPmessage_order, 100)
 	net_send_remove_order := make(chan UDPmessage_order, 100)
 
@@ -105,12 +105,12 @@ func TransmitMsg(localIP string,
 	}
 }
 func ReceiveMsg(localIP string,
-	elev_receive_state chan<- Cost,
-	elev_receive_new_order chan<- Order,
-	elev_receive_remove_order chan<- Order) {
+	elev_receive_state chan<- structs.Elev_state,
+	elev_receive_new_order chan<- structs.Order,
+	elev_receive_remove_order chan<- structs.Order) {
 
 
-	net_receive_state := make(chan UDPmessage_cost, 100)
+	net_receive_state := make(chan UDPmessage_state, 100)
 	net_receive_new_order := make(chan UDPmessage_order, 100)
 	net_receive_remove_order := make(chan UDPmessage_order, 100)
 
@@ -139,8 +139,8 @@ func ReceiveMsg(localIP string,
 			case msg := <-net_receive_state:
 				if msg.Address != localIP {
 					fmt.Printf("RECEIVING STATE\n")
-					msg.Data.Current_order.IP = msg.Address
-					fmt.Printf("ADDRESS: %s \n", msg.Data.Current_order.IP)
+					msg.Data.IP = msg.Address
+					fmt.Printf("ADDRESS: %s \n", msg.Data.IP)
 					elev_receive_state <- msg.Data	
 				}		
 		}
@@ -150,12 +150,12 @@ func ReceiveMsg(localIP string,
 
 func UDP_init(
 	localIP string,
-	elev_receive_state chan<- Elev_state,
-	elev_receive_new_order chan<- Order,
-	elev_receive_remove_order chan<- Order,
-	elev_send_state <-chan Elev_state,
-	elev_send_new_order <-chan Order,
-	elev_send_remove_order <-chan Order,
+	elev_receive_state chan<- structs.Elev_state,
+	elev_receive_new_order chan<- structs.Order,
+	elev_receive_remove_order chan<- structs.Order,
+	elev_send_state <-chan structs.Elev_state,
+	elev_send_new_order <-chan structs.Order,
+	elev_send_remove_order <-chan structs.Order,
 	number_of_peers chan<- int) {
 
 	fmt.Printf("Initializing network\n")

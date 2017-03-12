@@ -9,13 +9,19 @@ import (
 	"../localState"
 )
 
+var OrderNil = structs.Order{0,0,false,"0"}
+
 //for all orders in queue, sends new floor if order is command or matches direction
-func other_orders_in_dir(OrderQueue []structs.Order, new_target_floor chan<- int) {
+func other_orders_in_dir(OrderQueue []structs.Order, 
+	new_current_order chan<- structs.Order, 
+	localIP string) {
 	var floorSignal = driver.GetFloorSignal()
 	if floorSignal != -1 {
 		for _, order := range OrderQueue {
 			if order.Floor == floorSignal && (int(order.Type) == int(localState.ReadLocalState().Current_direction)+1 || int(order.Type) == 1) {
-				new_target_floor <- order.Floor
+				new_current_order <- order
+			} else if get_new_order(OrderQueue, new_current_order, localIP) != OrderNil {
+				new_current_order <- order	
 			}
 		}
 	}
@@ -47,23 +53,30 @@ func printOrderQueue(OrderQueue []structs.Order) {
 	fmt.Printf("\n")
 	fmt.Printf("---------------------------------\n")
 }
-
-func get_new_order(OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) {
-	for index, order := range OrderQueue {
+//Finds first order in queue that is ours
+func get_new_order(OrderQueue []structs.Order, new_current_order chan<- structs.Order, localIP string) structs.Order {
+	for _, order := range OrderQueue {
 		if order.IP == localIP {
-			fmt.Printf("Order.IP == localIP\n")
-			new_target_floor <- OrderQueue[index].Floor
-			break
+			return order	
 		}
 	}
+
+	return OrderNil
 }
 
-func add_order(order structs.Order, OrderQueue []structs.Order, new_target_floor chan<- int, localIP string) []structs.Order {
+func add_order(order structs.Order, OrderQueue []structs.Order, new_current_order chan<- structs.Order, localIP string) []structs.Order {
 	if is_duplicate(order, OrderQueue) == false {
 		fmt.Printf("Adding new order\n")
 		OrderQueue = append(OrderQueue, order)
 		printOrderQueue(OrderQueue)
-		get_new_order(OrderQueue, new_target_floor, localIP)
+		
+		//If added order is only order, (because if not we already have a current_order)	
+		if len(OrderQueue) == 1 {
+			order := get_new_order(OrderQueue, new_current_order, localIP)
+			if order != OrderNil{
+				new_current_order <- order
+			}
+		}
 		driver.SetButtonLamp(order.Type, order.Floor, 1)
 	}
 	return OrderQueue
@@ -114,10 +127,6 @@ func remove_all(floor int, elev_send_remove_order chan<- structs.Order, OrderQue
 	return OrderQueue
 }
 
-// ------------------------
-// Vi gir objektet State til to moduler samtidig uten at de returnerer verdien når den blir endret.
-// Hvordan vet vi da at State objektet til modulene er oppdatert at all times?????
-
 func Order_handler_init(localIP string,
 	floor_completed <-chan int,
 	button_event <-chan driver.OrderButton,
@@ -127,28 +136,31 @@ func Order_handler_init(localIP string,
 	elev_send_remove_order chan<- structs.Order,
 	elev_receive_new_order <-chan structs.Order,
 	elev_receive_remove_order <-chan structs.Order,
-	new_target_floor chan<- int) {
+	new_current_order chan<- structs.Order) {
 
 	var OrderQueue []structs.Order
 
 
 	for {
 		select {
+
+		//From FSM, current order done, must send new
 		case floor := <-floor_completed:
 			fmt.Printf("Order handler: Floor completed message received\n")
 			OrderQueue = remove_all(floor, elev_send_remove_order, OrderQueue)
-			//fmt.Printf("Order handler: Removed from order queue\n")
+			//If more orders, fetch them
 			if len(OrderQueue) != 0 {
 				printOrderQueue(OrderQueue)
 				fmt.Printf("Order handler: Retrieving new order\n")
-				get_new_order(OrderQueue, new_target_floor, localIP)
+				get_new_order(OrderQueue, new_current_order, localIP)
 			}
 
 		case order_button := <-button_event:
+			fmt.Printf("Received new button event\n")
 			if order_button.Type == driver.ButtonCallCommand {
 				//fmt.Printf("Order handler: Button pressed is command button\n")
 				new_order := structs.Order{Type: order_button.Type, Floor: order_button.Floor, Internal: true, IP: localIP}
-				OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
+				OrderQueue = add_order(new_order, OrderQueue, new_current_order, localIP)
 
 			} else { // if external, send to order_distribution
 				new_order := structs.Order{Type: order_button.Type, Floor: order_button.Floor, Internal: false, IP: localIP}
@@ -157,22 +169,27 @@ func Order_handler_init(localIP string,
 				newOrder <- new_order
 
 			}
+
+		//Received new order from order_distribution
 		case new_order := <-assignedNewOrder:
 			fmt.Printf("Order handler: Received new order from ord_dist\n")
-			OrderQueue = add_order(new_order, OrderQueue, new_target_floor, localIP)
+			OrderQueue = add_order(new_order, OrderQueue, new_current_order, localIP)
 			driver.SetButtonLamp( new_order.Type, new_order.Floor, 1)
-			//fmt.Printf("Order handler: Added new order in Order Queue\n")
 
+		//Removing external order
 		case order := <-elev_receive_remove_order:
 			OrderQueue = remove_order(order, OrderQueue)
 			printOrderQueue(OrderQueue)
 			driver.SetButtonLamp(order.Type, order.Floor, 0)	
+
+		//Adding external order
 		case new_order := <-elev_receive_new_order:
 			fmt.Printf("Order handler: Adding external order to our queue\n")
 			newOrder <- new_order
 
+		//Checking for other orders
 		default:
-			other_orders_in_dir(OrderQueue, new_target_floor)
+			other_orders_in_dir(OrderQueue, new_current_order, localIP)
 		}
 
 	}
