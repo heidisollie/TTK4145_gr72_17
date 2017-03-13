@@ -10,7 +10,6 @@ import "C"
 import "fmt"
 import "time"
 
-
 type MotorDirection int
 
 const (
@@ -53,7 +52,7 @@ func ElevInit() {
 
 }
 
-func EventListener(button_event chan OrderButton, floor_event chan int) {
+func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 	buttonWasActive := [NumFloors][NumButtons]int{
 		{0, 0, 0},
 		{0, 0, 0},
@@ -65,7 +64,7 @@ func EventListener(button_event chan OrderButton, floor_event chan int) {
 	for {
 		floorSignal = GetFloorSignal()
 		if floorSignal != lastPassedFloor && floorSignal != -1 {
-			floor_event <- floorSignal
+			floorEvent <- floorSignal
 			lastPassedFloor = floorSignal
 			for button := ButtonCallDown; int(button) < NumButtons; button++ {
 				buttonWasActive[floorSignal][button] = GetButtonSignal(button, floorSignal)
@@ -82,7 +81,7 @@ func EventListener(button_event chan OrderButton, floor_event chan int) {
 
 				buttonSignal = GetButtonSignal(button, floor)
 				if buttonSignal == 1 && (buttonWasActive[floor][button] == 0) {
-					button_event <- OrderButton{Type: button, Floor: floor}
+					buttonEvent <- OrderButton{Type: button, Floor: floor}
 					buttonWasActive[floor][button] = GetButtonSignal(button, floor)
 					for i := 0; i < NumFloors; i++ {
 					}

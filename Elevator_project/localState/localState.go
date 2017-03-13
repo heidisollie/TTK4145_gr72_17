@@ -1,25 +1,21 @@
 package localState
 
-import(
-	"../structs"
+import (
 	"../driver"
+	"../structs"
 )
-
-
 
 var localElevator structs.ElevState
 
-
-
-func ReadLocalState() structs.ElevState{
+func ReadLocalState() structs.ElevState {
 	return localElevator
 }
 
-func ChangeLocalState_flr(newFloor int){
+func ChangeLocalState_flr(newFloor int) {
 	localElevator.LastPassedFloor = newFloor
 }
 
-func ChangeLocalState_dir(newDir driver.MotorDirection){
+func ChangeLocalState_dir(newDir driver.MotorDirection) {
 	driver.SetMotorDirection(newDir)
 	localElevator.CurrentDirection = newDir
 }

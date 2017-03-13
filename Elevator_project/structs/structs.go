@@ -4,18 +4,17 @@ import (
 	"../driver"
 )
 
-
-
 type ElevState struct {
-	LastPassedFloor int
+	LastPassedFloor  int
 	CurrentDirection driver.MotorDirection
-	IP                string
+	Stuck            bool
+	IP               string
 }
 
 type Order struct {
-	Type     driver.ButtonType
-	Floor    int
-	IP       string
+	Type  driver.ButtonType
+	Floor int
+	IP    string
 }
 
 type Cost struct {
@@ -23,7 +22,6 @@ type Cost struct {
 	CurrentOrder Order
 }
 
-	
 const NUMELEV = 3
 
 /*
