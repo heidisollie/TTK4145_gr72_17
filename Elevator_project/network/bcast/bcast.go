@@ -9,8 +9,32 @@ import (
 	"strings"
 )
 
-// Encodes received values from `chans` into type-tagged JSON, then broadcasts
-// it on `port`
+func LocalTransmitter(port int, chans ...interface{}) {
+	checkArgs(chans...)
+
+	n := 0
+	for range chans {
+		n++
+	}
+
+	selectCases := make([]reflect.SelectCase, n)
+	typeNames := make([]string, n)
+	for i, ch := range chans {
+		selectCases[i] = reflect.SelectCase{
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(ch),
+		}
+		typeNames[i] = reflect.TypeOf(ch).Elem().String()
+	}
+	conn := conn.DialBroadcastUDP(port)
+	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("localhost:%d", port))
+	for {
+		chosen, value, _ := reflect.Select(selectCases)
+		buf, _ := json.Marshal(value.Interface())
+		conn.WriteTo([]byte(typeNames[chosen]+string(buf)), addr)
+	}
+}
+
 func Transmitter(port int, chans ...interface{}) {
 	checkArgs(chans...)
 
@@ -28,7 +52,6 @@ func Transmitter(port int, chans ...interface{}) {
 		}
 		typeNames[i] = reflect.TypeOf(ch).Elem().String()
 	}
-
 	conn := conn.DialBroadcastUDP(port)
 	addr, _ := net.ResolveUDPAddr("udp4", fmt.Sprintf("255.255.255.255:%d", port))
 	for {

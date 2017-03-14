@@ -87,12 +87,13 @@ func actionSelect(assignedNewOrder chan<- structs.Order,
 	currentNewOrder structs.Order,
 	localIP string,
 	stateController map[string]structs.ElevState) {
-
+	print("The new order is; %d ")
 	CostList := make([]structs.Cost, numberOfPeers)
 	var winner structs.Cost
 	i := 0
 
 	for index, state := range stateController {
+		fmt.Printf("index: %s \n", index)
 		currentNewOrder.IP = index //change the IP so it matches the costValue
 		//This is so when we assign the order, the IP will match the winner
 
@@ -105,6 +106,10 @@ func actionSelect(assignedNewOrder chan<- structs.Order,
 	}
 
 	CostList = sortListSort(CostList)
+	for i := 0; i < len(CostList); i++ {
+		fmt.Printf("Cost value of index %d \n", i)
+		fmt.Printf("%d \n", CostList[i].CostValue)
+	}
 	winner = CostList[0]
 	//Check for tie, lowest IP wins
 	if len(CostList) > 1 {
@@ -151,8 +156,6 @@ func OrderDistInit(localIP string,
 		//Received updated state from other elevator
 		case stateUpdate := <-elevReceiveState:
 			if stateUpdate.Stuck != true {
-				fmt.Printf("Received updated state from %s \n", stateUpdate.IP)
-				fmt.Print("State: dir: %d, flr: %d \n", stateUpdate.CurrentDirection, stateUpdate.LastPassedFloor+1)
 				stateController[stateUpdate.IP] = stateUpdate
 			} else {
 				//If elevator stuck

@@ -49,6 +49,7 @@ func ElevInit() {
 	for GetFloorSignal() == -1 {
 	}
 	SetMotorDirection(DirnStop)
+	SetFloorIndicator(GetFloorSignal())
 
 }
 

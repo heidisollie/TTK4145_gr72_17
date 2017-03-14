@@ -16,6 +16,10 @@ func ChangeLocalState_flr(newFloor int) {
 }
 
 func ChangeLocalState_dir(newDir driver.MotorDirection) {
-	driver.SetMotorDirection(newDir)
+	//driver.SetMotorDirection(newDir)
 	localElevator.CurrentDirection = newDir
+}
+
+func ChangeLocalState_stuck(stuck bool) {
+	localElevator.Stuck = stuck
 }

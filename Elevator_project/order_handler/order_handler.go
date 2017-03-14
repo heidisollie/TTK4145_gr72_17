@@ -1,19 +1,24 @@
 package order_handler
 
 import (
+	//	"../backup"
+	"../backup"
 	"../driver"
 	"../localState"
 	"../structs"
 	"fmt"
+	"time"
 )
 
 //for all orders in queue, sends new floor if order is command or matches direction
 func otherOrdersInDir(OrderQueue []structs.Order, newTargetFloor chan<- int) {
 	var floorSignal = driver.GetFloorSignal()
-	if floorSignal != -1 {
-		for _, order := range OrderQueue {
-			if order.Floor == floorSignal && (int(order.Type) == int(localState.ReadLocalState().CurrentDirection)+1 || int(order.Type) == 1) {
-				newTargetFloor <- order.Floor
+	if len(OrderQueue) != 0 {
+		if floorSignal != -1 {
+			for _, order := range OrderQueue {
+				if order.Floor == floorSignal && (int(order.Type) == int(localState.ReadLocalState().CurrentDirection)+1 || int(order.Type) == 1) {
+					newTargetFloor <- order.Floor
+				}
 			}
 		}
 	}
@@ -29,13 +34,12 @@ func isDuplicate(order structs.Order, OrderQueue []structs.Order) bool {
 }
 
 func printOrderQueue(OrderQueue []structs.Order) {
-	fmt.Printf("---------------------------------\n")
-	fmt.Printf("PRINTING FROM FUNCTION\n")
+	fmt.Printf("-------PRINTING QUEUE------- \n")
 	fmt.Printf("Order Queue: \n")
 	for i, order := range OrderQueue {
 		fmt.Printf("Element: %d \n", i+1)
 		fmt.Print("Button  Floor\n")
-		fmt.Print(order.Type, order.Floor+1)
+		fmt.Printf("%d        %d \n", order.Type, order.Floor+1)
 		fmt.Printf("\n")
 		fmt.Printf("IP: %s\n", order.IP)
 	}
@@ -45,12 +49,18 @@ func printOrderQueue(OrderQueue []structs.Order) {
 	fmt.Printf("---------------------------------\n")
 }
 
+func printOrder(Order structs.Order) {
+	fmt.Printf("-------PRINTING ORDER------- \n")
+	fmt.Printf("Button: %d, Floor: %d \n", Order.Type, Order.Floor+1)
+	fmt.Printf("-----------------------------\n")
+}
+
 func getNewOrder(OrderQueue []structs.Order, newTargetFloor chan<- int, localIP string) {
 	for index, order := range OrderQueue {
 		if order.IP == localIP {
 			fmt.Printf("Found new order \n")
 			newTargetFloor <- OrderQueue[index].Floor
-			fmt.Printf("Sendt new order \n")
+			fmt.Printf("Sent new order \n")
 			break
 		}
 	}
@@ -78,17 +88,18 @@ func removeOrder(order structs.Order, OrderQueue []structs.Order) []structs.Orde
 }
 
 func removeElementSlice(slice []structs.Order, index int) []structs.Order {
-	//Hvis index er siste elementet
 	if len(slice) == 0 {
-	} else if index == len(slice)-1 {
 
-		if index == 0 {
-			slice = []structs.Order{}
-		} else {
-			slice = slice[:index]
-		}
+	} else if len(slice) == 1 {
+		slice = []structs.Order{}
 	} else {
-		slice = append(slice[:index], slice[index+1:]...)
+		if index == len(slice)-1 { //if removed order is last element
+			slice = slice[:index] //includes everything up to current index (since it is last)
+		} else if index == 0 {
+			slice = slice[index+1:] //includes everything except for current index (since it is first)
+		} else {
+			slice = append(slice[:index], slice[index+1:]...)
+		}
 	}
 
 	return slice
@@ -97,18 +108,16 @@ func removeElementSlice(slice []structs.Order, index int) []structs.Order {
 func removeAll(floor int, elevSendRemoveOrder chan<- structs.Order, OrderQueue []structs.Order) []structs.Order {
 	for _, order := range OrderQueue {
 		if order.Floor == floor {
-			fmt.Printf("Order handler: Found order in floor, removing\n")
-			fmt.Printf("Order handler: Floor: %d %s\n", order.Floor, order.Type)
 			OrderQueue = removeOrder(order, OrderQueue)
 			driver.SetButtonLamp(order.Type, order.Floor, 0)
-			printOrderQueue(OrderQueue)
-			//If the order is not command button (which means all the other elevators have the same order in their queue
-			// and need to be notified that they need to remove it
+
 			if order.Type != 1 {
 				elevSendRemoveOrder <- order
 			}
 		}
 	}
+	fmt.Printf("After remove all \n")
+	printOrderQueue(OrderQueue)
 	return OrderQueue
 }
 
@@ -122,11 +131,24 @@ func OrderHandlerInit(localIP string,
 	elevReceiveNewOrder <-chan structs.Order,
 	elevReceiveRemoveOrder <-chan structs.Order,
 	elevLost <-chan string,
-	newTargetFloor chan<- int) {
+	newTargetFloor chan<- int,
+	floorEvent <-chan int) {
 
 	var OrderQueue []structs.Order
+	backup.ReadQueueFromFile(&OrderQueue, structs.Filename)
 
-	go otherOrdersInDir(OrderQueue, newTargetFloor)
+	for _, order := range OrderQueue {
+		driver.SetButtonLamp(order.Type, order.Floor, 1)
+	}
+	fmt.Printf("Initial queue \n")
+	printOrderQueue(OrderQueue)
+
+	if len(OrderQueue) != 0 {
+		getNewOrder(OrderQueue, newTargetFloor, localIP)
+	}
+
+	loggingPeriod := 10 * time.Millisecond
+	loggingTicker := time.NewTicker(loggingPeriod)
 
 	for {
 		select {
@@ -164,10 +186,10 @@ func OrderHandlerInit(localIP string,
 			printOrderQueue(OrderQueue)
 			driver.SetButtonLamp(order.Type, order.Floor, 0)
 		case newOrder := <-elevReceiveNewOrder:
-			fmt.Printf("Order handler: Adding external order to our queue\n")
+			fmt.Printf("Order handler: Adding external order to our queue\n-----------------")
 			processNewOrder <- newOrder
 
-		//Redistributing orders for lost elevator
+		// Redistributing orders for lost elevator
 		// Note: if elevator comes back on the network, nothing happens.
 		// The elevators are just ineffective for a short period of time
 		case IP := <-elevLost:
@@ -177,11 +199,13 @@ func OrderHandlerInit(localIP string,
 				}
 
 			}
-			/*
-				default:
-					otherOrdersInDir(OrderQueue, newTargetFloor)*/
+
+		case <-loggingTicker.C:
+			backup.WriteQueueToFile(OrderQueue, structs.Filename)
+
+		case <-floorEvent:
+			otherOrdersInDir(OrderQueue, newTargetFloor)
 
 		}
-
 	}
 }

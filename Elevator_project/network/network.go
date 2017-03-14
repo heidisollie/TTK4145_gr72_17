@@ -7,17 +7,15 @@ import (
 	"./peers"
 	"flag"
 	"fmt"
-	"os"
-	"time"
+	"reflect"
 )
 
 const (
-	portPeer          = 37899
-	newOrderPort      = 37776
-	removeOrderPort   = 37715
-	statePort         = 37714
-	backupPort        = 37716
-	broadcastInterval = 1 * time.Second
+	portPeer        = 37899
+	newOrderPort    = 37776
+	removeOrderPort = 37715
+	statePort       = 37714
+	backupPort      = 37716
 )
 
 type UDPMessageState struct {
@@ -39,7 +37,7 @@ func GetIP() string {
 		fmt.Println(err)
 		localIP = "DISCONNECTED"
 	}
-	id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
+	id = fmt.Sprintf(localIP)
 
 	return id
 
@@ -83,20 +81,20 @@ func TransmitMessage(localIP string,
 		case msg := <-elevSendState:
 			msg.IP = localIP
 			message := UDPMessageState{Address: localIP, Data: msg}
-			for {
+			for i := 0; i < 3; i++ {
 				netSendState <- message
 			}
-			fmt.Printf("BROADCASTING STATE\n")
+			//fmt.Printf("BROADCASTING STATE\n")
 		case msg := <-elevSendNewOrder:
 			message := UDPMessageOrder{Address: localIP, Data: msg}
-			for {
+			for i := 0; i < 3; i++ {
 				netSendNewOrder <- message
 			}
 			fmt.Printf("BROADCASTING NEW ORDER\n")
 
 		case msg := <-elevSendRemoveOrder:
 			message := UDPMessageOrder{Address: localIP, Data: msg}
-			for {
+			for i := 0; i < 3; i++ {
 				netSendRemoveOrder <- message
 			}
 			fmt.Printf("BROADCASTING REMOVE ORDER\n")
@@ -122,25 +120,37 @@ func ReceiveMessage(localIP string,
 
 		case msg := <-netReceiveState:
 			if msg.Address != localIP {
-				fmt.Printf("RECEIVING STATE\n")
+				fmtPrintf("IP1; %s\n", msg.Address)
+				//fmt.Printf("RECEIVING STATE\n")
 				msg.Data.IP = msg.Address
-				fmt.Printf("ADDRESS: %s \n", msg.Data.IP)
+				//fmt.Printf("ADDRESS: %s \n", msg.Data.IP)
 				elevReceiveState <- msg.Data
 			}
 		case msg := <-netReceiveNewOrder:
 			if msg.Address != localIP {
-				fmt.Printf("RECEIVING NEW ORDER\n")
+				fmtPrintf("IP2; %s\n", msg.Address)
+				//fmt.Printf("RECEIVING NEW ORDER\n")
 				msg.Data.IP = msg.Address
-				fmt.Printf("ADDRESS1: %s \n", msg.Data.IP)
+				//fmt.Printf("ADDRESS1: %s \n", msg.Data.IP)
 				elevReceiveNewOrder <- msg.Data
 			}
 		case msg := <-netReceiveRemoveOrder:
 			if msg.Address != localIP {
-				fmt.Printf("RECEIVING REMOVE ORDER\n")
+				fmtPrintf("IP3; %s\n", msg.Address)
+				//fmt.Printf("RECEIVING REMOVE ORDER\n")
 				msg.Data.IP = msg.Address
-				fmt.Printf("ADDRESS2: %s \n", msg.Data.IP)
+				//fmt.Printf("ADDRESS2: %s \n", msg.Data.IP)
 				elevReceiveRemoveOrder <- msg.Data
 			}
+		}
+	}
+}
+
+func Repeater(ch_in interface{}, chs_out ...interface{}) {
+	for {
+		v, _ := reflect.ValueOf(ch_in).Recv()
+		for _, c := range chs_out {
+			reflect.ValueOf(c).Send(v)
 		}
 	}
 }
@@ -160,104 +170,4 @@ func NetworkInit(
 	go UDPPeerBroadcast(localIP, Peers)
 	go TransmitMessage(localIP, elevSendState, elevSendNewOrder, elevSendRemoveOrder)
 	go ReceiveMessage(localIP, elevReceiveState, elevReceiveNewOrder, elevReceiveRemoveOrder)
-
 }
-
-/*
-func UDP_init(
-	elev_receive_state chan<- Cost,
-	elev_receive_new_order chan<- Order,
-	elev_receive_remove_order chan<- Order,
-	elev_send_state <-chan Cost,
-	elev_send_new_order <-chan Order,
-	elev_send_remove_order <-chan Order) {
-
-	fmt.Printf("Initializing network\n")
-
-	var id string
-
-		flag.StringVar(&id, "id", "", "id of this peer")
-		flag.Parse()
-
-			var localIP string
-			localIP, err := localip.LocalIP()
-			if err != nil {
-				fmt.Println(err)
-				localIP = "DISCONNECTED"
-			}
-			id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
-
-	var localIP string
-	localIP = "3456"
-	id = localIP
-	//channels for network
-	net_send_state := make(chan<- UDPmessage_cost)
-	net_send_new_order := make(chan<- UDPmessage_order)
-	net_send_remove_order := make(chan<- UDPmessage_order)
-
-	net_receive_state := make(<-chan UDPmessage_cost)
-	net_receive_new_order := make(<-chan UDPmessage_order)
-	net_receive_remove_order := make(<-chan UDPmessage_order)
-
-	peerUpdateCh := make(chan peers.PeerUpdate)
-	peerTxEnable := make(chan bool)
-
-	//binding channels and ports
-	go peers.Transmitter(port_peer, id, peerTxEnable)
-	go peers.Receiver(port_peer, peerUpdateCh)
-
-	go bcast.Transmitter(get_order_port, net_send_new_order)
-	go bcast.Transmitter(remove_order_port, net_send_remove_order)
-	go bcast.Transmitter(state_port, net_send_state)
-
-	go bcast.Receiver(get_order_port, net_receive_new_order)
-	go bcast.Receiver(remove_order_port, net_receive_remove_order)
-	go bcast.Receiver(state_port, net_receive_state)
-
-	//send_ticker := time.NewTicker(broadcast_interval) // bruke dette?
-
-	for {
-		select {
-
-		//cases where NW recieves message from elevatar and broadcastes it on the network
-		case msg := <-elev_send_new_order:
-			fmt.Printf("Broadcasting new order from elev\n")
-			for {
-				message := UDPmessage_order{Address: localIP, Data: msg}
-				net_send_new_order <- message
-				time.Sleep(broadcast_interval)
-			}
-
-		case msg := <-elev_send_remove_order:
-			fmt.Printf("Broadcasting remove order from elev\n")
-			for {
-				message := UDPmessage_order{Address: localIP, Data: msg}
-				net_send_remove_order <- message
-				time.Sleep(broadcast_interval)
-			}
-
-		case msg := <-elev_send_state:
-			fmt.Printf("Broadcasting cost value\n")
-			for {
-				message := UDPmessage_cost{Address: localIP, Data: msg}
-				net_send_state <- message
-				time.Sleep(broadcast_interval)
-			}
-
-		//cases where NW receives data from the network and passes it to the right channel
-		case msg := <-net_receive_new_order:
-			fmt.Printf("Received new order from NW\n")
-			elev_receive_new_order <- msg.Data
-
-		case msg := <-net_receive_remove_order:
-			fmt.Printf("Received remove order from NW\n")
-			elev_receive_remove_order <- msg.Data
-
-		case msg := <-net_receive_state:
-			fmt.Printf("Received cost value from NW\n")
-			elev_receive_state <- msg.Data
-
-		}
-	}
-}
-*/
