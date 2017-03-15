@@ -5,22 +5,50 @@ import (
 	"../localState"
 	"../structs"
 	"fmt"
+	//"os"
 	"sync"
 	"time"
 )
 
 const stuckPeriod = 6 * time.Second
-const statePeriod = 100 * time.Millisecond
+const statePeriod = 200 * time.Millisecond
+const doorPeriod = 2 * time.Second
 
 type FSMState int
 
 const (
-	idle   = 0
-	moving = 1
-	stuck  = -1
+	idle     FSMState = 0
+	moving   FSMState = 1
+	doorOpen FSMState = 2
+	stuck    FSMState = -1
 )
 
 var mu sync.Mutex
+
+func elevGoDown(mu sync.Mutex) FSMState {
+	driver.SetMotorDirection(driver.DirnDown)
+	mu.Lock()
+	localState.ChangeLocalState_dir(driver.DirnDown)
+	mu.Unlock()
+	return moving
+
+}
+
+func elevGoUp(mu sync.Mutex) FSMState {
+	driver.SetMotorDirection(driver.DirnUp)
+	mu.Lock()
+	localState.ChangeLocalState_dir(driver.DirnUp)
+	mu.Unlock()
+	return moving
+}
+
+func elevStop(mu sync.Mutex) {
+	driver.SetMotorDirection(driver.DirnStop)
+	mu.Lock()
+	localState.ChangeLocalState_dir(driver.DirnStop)
+	mu.Unlock()
+
+}
 
 func FSMInit(floorEvent <-chan int, newTargetFloor <-chan int, floorCompleted chan<- int, elevSendState chan<- structs.ElevState) {
 
@@ -30,11 +58,14 @@ func FSMInit(floorEvent <-chan int, newTargetFloor <-chan int, floorCompleted ch
 	stateTicker := time.NewTicker(statePeriod)
 	stuckTimer := time.NewTimer(stuckPeriod)
 	stuckTimer.Stop()
+	doorTimer := time.NewTimer(doorPeriod)
+	doorTimer.Stop()
 
 	for {
 		select {
 		case <-stateTicker.C:
 			mu.Lock()
+			////fmt.Printf("My local states: flr: %d, dir: %d, IP: %s \n", localState.ReadLocalState().LastPassedFloor, localState.ReadLocalState().CurrentDirection, localState.ReadLocalState().IP)
 			elevSendState <- localState.ReadLocalState()
 			mu.Unlock()
 		case <-stuckTimer.C:
@@ -42,104 +73,73 @@ func FSMInit(floorEvent <-chan int, newTargetFloor <-chan int, floorCompleted ch
 			case idle:
 
 			case moving:
-				fmt.Printf("FSM: Elevator timed out. State = stuck\n")
-				driver.SetMotorDirection(driver.DirnStop)
+				////fmt.Printf("Elevator timed out. Exiting program \n")
+				//elevStop(mu)
+				State = stuck
 				mu.Lock()
-				localState.ChangeLocalState_dir(driver.DirnStop)
 				localState.ChangeLocalState_stuck(true)
 				mu.Unlock()
-				State = stuck
-				// Can end program here
+				elevSendState <- localState.ReadLocalState()
+				//driver.ClearAllButtonLamps
+				fmt.Printf("Elevator timed out\n")
+
+			case stuck:
+			}
+		case <-doorTimer.C:
+			switch State {
+			case idle:
+				////fmt.Printf("Skal aldri printes 1\n")
+			case doorOpen:
+				driver.SetDoorOpenLamp(0)
+				floorCompleted <- localState.ReadLocalState().LastPassedFloor
+				State = idle
+			case moving:
+				//fmt.Printf("Skal aldri printes 2\n")
 			case stuck:
 			}
 
 		case floor := <-newTargetFloor:
-			/*if floor == driver.GetFloorSignal() {
-				driver.SetMotorDirection(driver.DirnStop)
-				mu.Lock()
-				localState.ChangeLocalState_dir(driver.DirnStop)
-				mu.Unlock()
-				fmt.Printf("We are at this floor \n")
-				fmt.Printf("Door 1\n")
-				driver.OpenCloseDoor()
-				floorCompleted <- floor
-			}*/
-			if floor == targetFloor {
-				driver.OpenCloseDoor()
-				floorCompleted <- floor
-				fmt.Printf("New target floor is current target floor \n")
-				break
-			}
+
+			//fmt.Printf("Floor Signal %d, floor: %d \n", driver.GetFloorSignal()+1, floor+1)
 
 			targetFloor = floor
 			fmt.Printf("FSM: New target floor is %d\n", targetFloor+1)
-
+			stuckTimer.Reset(stuckPeriod)
 			switch State {
 			case idle:
-				if targetFloor == -1 {
-					fmt.Printf("FSM: No target floor\n")
+				//if targetFloor != -1 {
+				if targetFloor < localState.ReadLocalState().LastPassedFloor {
+					State = elevGoDown(mu)
+				} else if targetFloor > localState.ReadLocalState().LastPassedFloor {
+					State = elevGoUp(mu)
 				} else {
-					fmt.Printf("Resetting stuck timer: 1 \n")
-					stuckTimer.Reset(stuckPeriod)
-					if targetFloor < localState.ReadLocalState().LastPassedFloor {
-						fmt.Printf("Going down\n")
-						driver.SetMotorDirection(driver.DirnDown)
-						mu.Lock()
-						localState.ChangeLocalState_dir(driver.DirnDown)
-						mu.Unlock()
-						State = moving
-					} else if targetFloor > localState.ReadLocalState().LastPassedFloor {
-						fmt.Printf("Going up\n")
-						driver.SetMotorDirection(driver.DirnUp)
-						mu.Lock()
-						localState.ChangeLocalState_dir(driver.DirnUp)
-						mu.Unlock()
-						State = moving
-					} else {
-						fmt.Printf("Staying put \n")
-						driver.SetMotorDirection(driver.DirnStop)
-						State = idle
-						mu.Lock()
-						localState.ChangeLocalState_dir(driver.DirnStop)
-						mu.Unlock()
-						floorCompleted <- localState.ReadLocalState().LastPassedFloor
-						fmt.Printf("Door 2\n")
-						driver.OpenCloseDoor()
-						fmt.Print("FSM: [IDLE] Reached target floor\n")
-
-					}
+					elevStop(mu)
+					doorTimer.Reset(doorPeriod)
+					driver.SetDoorOpenLamp(1)
+					State = doorOpen
 				}
+				//}
 			case moving:
-				if targetFloor == localState.ReadLocalState().LastPassedFloor {
-					driver.SetMotorDirection(driver.DirnStop)
-					stuckTimer.Stop()
-					mu.Lock()
-					localState.ChangeLocalState_dir(driver.DirnStop)
-					mu.Unlock()
-					State = idle
-					floorCompleted <- localState.ReadLocalState().LastPassedFloor
-					fmt.Printf("Door 3\n")
-					driver.OpenCloseDoor()
-					fmt.Print("FSM: [MOVING] Reached target floor\n")
+				if targetFloor < localState.ReadLocalState().LastPassedFloor {
+					elevGoDown(mu)
+
+				} else if targetFloor > localState.ReadLocalState().LastPassedFloor {
+					elevGoUp(mu)
 
 				}
+			case doorOpen:
+				//fmt.Printf("Door open\n")
 			case stuck:
-				fmt.Printf("FSM: [STUCK] \n")
+				//fmt.Printf("FSM: [STUCK] \n")
 			}
 
 		case floor := <-floorEvent:
-			fmt.Printf("Received new floor event\n")
+			fmt.Printf("We're at a new floor: %d \n", floor+1)
 			driver.SetFloorIndicator(floor)
-
-			if (floor == 0) || (floor == driver.NumFloors-1) {
-				fmt.Printf("Reaching bounds, stopping \n")
-				driver.SetMotorDirection(driver.DirnStop)
-				mu.Lock()
-				localState.ChangeLocalState_dir(driver.DirnStop)
-				mu.Unlock()
-			}
-
 			localState.ChangeLocalState_flr(floor)
+			if (floor == 0) || (floor == driver.NumFloors-1) {
+				elevStop(mu)
+			}
 
 			switch State {
 			case idle:
@@ -148,33 +148,26 @@ func FSMInit(floorEvent <-chan int, newTargetFloor <-chan int, floorCompleted ch
 			case moving:
 				fmt.Printf("FSM: CASE [floor event]: STATE [moving], floor: %d\n", floor+1)
 
-				if targetFloor == -1 {
-					break
-				} else if targetFloor < localState.ReadLocalState().LastPassedFloor {
-					driver.SetMotorDirection(driver.DirnDown)
+				if targetFloor < localState.ReadLocalState().LastPassedFloor {
+					elevGoDown(mu)
 					stuckTimer.Reset(stuckPeriod)
-					mu.Lock()
-					localState.ChangeLocalState_dir(driver.DirnDown)
-					mu.Unlock()
 				} else if targetFloor > localState.ReadLocalState().LastPassedFloor {
-					driver.SetMotorDirection(driver.DirnUp)
+					elevGoUp(mu)
 					stuckTimer.Reset(stuckPeriod)
-					mu.Lock()
-					localState.ChangeLocalState_dir(driver.DirnUp)
-					mu.Unlock()
 				} else {
-					driver.SetMotorDirection(driver.DirnStop)
-					mu.Lock()
-					localState.ChangeLocalState_dir(driver.DirnStop)
-					mu.Unlock()
+					//fmt.Printf("FSM state MOVING and floor == targetFloor\n")
+					elevStop(mu)
 					stuckTimer.Stop()
-					State = idle
-					floorCompleted <- localState.ReadLocalState().LastPassedFloor
-					fmt.Printf("Door 4\n")
-					driver.OpenCloseDoor()
+					doorTimer.Reset(doorPeriod)
+					driver.SetDoorOpenLamp(1)
+					State = doorOpen
 				}
+			case doorOpen:
+				//fmt.Printf("Door open\n")
 			case stuck:
-				fmt.Printf("FSM: STATE [stuck]; cannot reach floor %d\n", floor+1)
+				elevStop(mu)
+				localState.ChangeLocalState_stuck(false)
+				State = idle
 
 			}
 		}

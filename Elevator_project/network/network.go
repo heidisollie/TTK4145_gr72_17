@@ -87,9 +87,9 @@ func TransmitMessage(localIP string,
 			//fmt.Printf("BROADCASTING STATE\n")
 		case msg := <-elevSendNewOrder:
 			message := UDPMessageOrder{Address: localIP, Data: msg}
-			for i := 0; i < 3; i++ {
-				netSendNewOrder <- message
-			}
+			//for i := 0; i < 3; i++ {
+			netSendNewOrder <- message
+			//}
 			fmt.Printf("BROADCASTING NEW ORDER\n")
 
 		case msg := <-elevSendRemoveOrder:
@@ -119,16 +119,16 @@ func ReceiveMessage(localIP string,
 		select {
 
 		case msg := <-netReceiveState:
-			if msg.Address != localIP {
-				fmtPrintf("IP1; %s\n", msg.Address)
-				//fmt.Printf("RECEIVING STATE\n")
-				msg.Data.IP = msg.Address
-				//fmt.Printf("ADDRESS: %s \n", msg.Data.IP)
-				elevReceiveState <- msg.Data
-			}
+			//if msg.Address != localIP {
+			//fmt.Printf("IP1; %s\n", msg.Address)
+			//fmt.Printf("RECEIVING STATE\n")
+			msg.Data.IP = msg.Address
+			//fmt.Printf("ADDRESS: %s \n", msg.Data.IP)
+			elevReceiveState <- msg.Data
+			//}
 		case msg := <-netReceiveNewOrder:
 			if msg.Address != localIP {
-				fmtPrintf("IP2; %s\n", msg.Address)
+				//fmt.Printf("IP2; %s\n", msg.Address)
 				//fmt.Printf("RECEIVING NEW ORDER\n")
 				msg.Data.IP = msg.Address
 				//fmt.Printf("ADDRESS1: %s \n", msg.Data.IP)
@@ -136,7 +136,7 @@ func ReceiveMessage(localIP string,
 			}
 		case msg := <-netReceiveRemoveOrder:
 			if msg.Address != localIP {
-				fmtPrintf("IP3; %s\n", msg.Address)
+				//fmt.Printf("IP3; %s\n", msg.Address)
 				//fmt.Printf("RECEIVING REMOVE ORDER\n")
 				msg.Data.IP = msg.Address
 				//fmt.Printf("ADDRESS2: %s \n", msg.Data.IP)

@@ -4,17 +4,18 @@ import (
 	"./FSM"
 	"./backup"
 	"./driver"
+	"./localState"
 	"./network"
-	"./network/bcast"
+	//"./network/bcast"
 	"./network/peers"
 	"./order_distribution"
 	"./order_handler"
 	"./structs"
 	"fmt"
-	"log"
-	"os"
-	"os/exec"
-	"time"
+	//"log"
+	//"os"
+	//"os/exec"
+	//"time"
 )
 
 //------------Oppdatering------------
@@ -52,6 +53,8 @@ func main() {
 
 	var localIP string
 	localIP = network.GetIP()
+
+	localState.ChangeLocalState_IP(localIP)
 	fmt.Printf("Local ip is: %s \n", localIP)
 	newTargetFloor := make(chan int, 100)
 	floorEvent := make(chan int, 100) //heis ved etasje til order_handler
@@ -76,35 +79,36 @@ func main() {
 	peers := make(chan peers.PeerUpdate, 100)
 
 	driver.ElevInit()
+	/*
+		//creating backup and waits
+		if _, err := os.Open(structs.Filename); err == nil {
+			fmt.Printf("Backup waiting\n")
+			//backUp()
+			fmt.Printf("Backup starting\n")
+			//order_handler.ReadFile(structs.Filename)
+		} else {
+			fmt.Printf("First\n")
+			//time.Sleep(time.Millisecond)
+			if _, err := os.Create(structs.Filename); err != nil {
+				log.Fatal("cannot create a file\n")
+			}
 
-	//creating backup and waits
-	if _, err := os.Open(structs.Filename); err == nil {
-		fmt.Printf("Backup waiting\n")
-		backUp()
-		fmt.Printf("Backup starting\n")
-		//order_handler.ReadFile(structs.Filename)
-	} else {
-		fmt.Printf("First\n")
-		//time.Sleep(time.Millisecond)
-		if _, err := os.Create(structs.Filename); err != nil {
-			log.Fatal("cannot create a file\n")
+			go order_handler.OrderHandlerInit(localIP,
+				floorCompleted,
+				buttonEvent,
+				assignedNewOrder,
+				processNewOrder,
+				elevSendNewOrder,
+				elevSendRemoveOrder,
+				elevReceiveNewOrder,
+				elevReceiveRemoveOrder,
+				elevLost,
+				newTargetFloor,
+				floorEventOrderHandler)
 		}
-
-		go order_handler.OrderHandlerInit(localIP,
-			floorCompleted,
-			buttonEvent,
-			assignedNewOrder,
-			processNewOrder,
-			elevSendNewOrder,
-			elevSendRemoveOrder,
-			elevReceiveNewOrder,
-			elevReceiveRemoveOrder,
-			elevLost,
-			newTargetFloor,
-			floorEventOrderHandler)
-	}
-	backupTerminal := exec.Command("gnome-terminal", "-x", "sh", "-c", "go run elevmain.go")
-	backupTerminal.Run()
+	*/
+	//backupTerminal := exec.Command("gnome-terminal", "-x", "sh", "-c", "go run elevmain.go")
+	//backupTerminal.Run()
 
 	go backup.AliveSpammer(structs.Filename)
 
@@ -144,12 +148,13 @@ func main() {
 	select {}
 }
 
+/*
 func backUp() {
 	alivePeriod := 200 * time.Millisecond
 	alivePort := 37718
 	var resetChannel = make(chan string)
 	isAliveTimer := time.NewTimer(alivePeriod)
-	//isAliveTimer.Stop()
+	isAliveTimer.Stop()
 
 	go bcast.Receiver(alivePort, resetChannel)
 
@@ -166,3 +171,4 @@ func backUp() {
 		}
 	}
 }
+*/

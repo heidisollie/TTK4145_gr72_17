@@ -23,3 +23,7 @@ func ChangeLocalState_dir(newDir driver.MotorDirection) {
 func ChangeLocalState_stuck(stuck bool) {
 	localElevator.Stuck = stuck
 }
+
+func ChangeLocalState_IP(IP string) {
+	localElevator.IP = IP
+}

@@ -81,40 +81,49 @@ func sortListSort(list []structs.Cost) []structs.Cost {
 	return list
 }
 
+func printCostList(costList []structs.Cost) {
+	fmt.Printf("------Printing cost list------\n")
+	for i := 0; i < len(costList); i++ {
+		fmt.Printf("Cost value of index %d \n", i)
+		fmt.Printf("%d - IP: %s \n", costList[i].CostValue, costList[i].CurrentOrder.IP)
+	}
+	fmt.Printf("--------------------------------\n")
+}
+
 //Sends order to order handler of with IP address of lowest cost. If tie, picks the one with lower IP
 func actionSelect(assignedNewOrder chan<- structs.Order,
 	numberOfPeers int,
-	currentNewOrder structs.Order,
+	newOrder structs.Order,
 	localIP string,
-	stateController map[string]structs.ElevState) {
-	print("The new order is; %d ")
+	stateController map[string]*structs.ElevState) {
+
+	fmt.Printf("The new order is: button: %d, floor: %d \n", newOrder.Type, newOrder.Floor+1)
 	CostList := make([]structs.Cost, numberOfPeers)
 	var winner structs.Cost
 	i := 0
 
 	for index, state := range stateController {
-		fmt.Printf("index: %s \n", index)
-		currentNewOrder.IP = index //change the IP so it matches the costValue
-		//This is so when we assign the order, the IP will match the winner
-
-		//If elevator not stuck
-		costValue := costFunction(currentNewOrder, state)
-		cost := structs.Cost{costValue, currentNewOrder}
+		fmt.Printf("Index: %s \n", index)
+		fmt.Printf("State: flr: %d, dir: %d, IP: %s \n", state.LastPassedFloor, state.CurrentDirection, state.IP)
+		tempOrder := structs.Order{newOrder.Type, newOrder.Floor, index}
+		costValue := costFunction(newOrder, *state)
+		cost := structs.Cost{costValue, tempOrder}
 		CostList[i] = cost
+		fmt.Printf("IP of order in cost value: %s \n", cost.CurrentOrder.IP)
 		i += 1
 
 	}
 
 	CostList = sortListSort(CostList)
-	for i := 0; i < len(CostList); i++ {
-		fmt.Printf("Cost value of index %d \n", i)
-		fmt.Printf("%d \n", CostList[i].CostValue)
-	}
+	printCostList(CostList)
+
 	winner = CostList[0]
 	//Check for tie, lowest IP wins
 	if len(CostList) > 1 {
-		if CostList[0] == CostList[1] {
+		if CostList[0].CostValue == CostList[1].CostValue {
+			//fmt.Printf("last ip: %s, last ip: %s\n", SplitIP(CostList[0].CurrentOrder.IP), SplitIP(CostList[1].CurrentOrder.IP))
 			if SplitIP(CostList[0].CurrentOrder.IP) > SplitIP(CostList[1].CurrentOrder.IP) {
+				fmt.Printf("Switch winner because %s > %s \n", SplitIP(CostList[0].CurrentOrder.IP), SplitIP(CostList[1].CurrentOrder.IP))
 				winner = CostList[1]
 			}
 		}
@@ -146,9 +155,8 @@ func OrderDistInit(localIP string,
 	Peers <-chan peers.PeerUpdate) {
 
 	var peers int = 0
-
-	stateController := map[string]structs.ElevState{}
-	stateController[localIP] = structs.ElevState{localState.ReadLocalState().LastPassedFloor, 0, false, localIP}
+	stateController := make(map[string]*structs.ElevState)
+	stateController[localIP] = &structs.ElevState{localState.ReadLocalState().LastPassedFloor, 0, false, localIP}
 
 	for {
 		select {
@@ -156,7 +164,8 @@ func OrderDistInit(localIP string,
 		//Received updated state from other elevator
 		case stateUpdate := <-elevReceiveState:
 			if stateUpdate.Stuck != true {
-				stateController[stateUpdate.IP] = stateUpdate
+				stateController[stateUpdate.IP] = &stateUpdate
+				//fmt.Printf("Received states are: flr: %d, dir: %d, IP: %s \n", stateUpdate.LastPassedFloor, stateUpdate.CurrentDirection, stateUpdate.IP)
 			} else {
 				//If elevator stuck
 				delete(stateController, stateUpdate.IP)
