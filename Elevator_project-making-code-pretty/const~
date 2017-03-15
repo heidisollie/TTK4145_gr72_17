@@ -1,0 +1,12 @@
+package structs
+
+import (
+	"log"
+	"time"
+	"./network"
+	"encoding/json"
+	
+)
+
+
+type 
