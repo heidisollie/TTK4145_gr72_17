@@ -17,8 +17,9 @@ func otherOrdersInDir(OrderQueue []structs.Order, newTargetFloor chan<- int) {
 		if floorSignal != -1 {
 			for _, order := range OrderQueue {
 				if order.Floor == floorSignal && (int(order.Type) == int(localState.ReadLocalState().CurrentDirection)+1 || int(order.Type) == 1) {
-					fmt.Printf("Found extra order \n")
+					fmt.Printf("Found extra order: %d \n", order.Floor+1)
 					newTargetFloor <- order.Floor
+					break
 				}
 			}
 		}
@@ -149,7 +150,7 @@ func OrderHandlerInit(localIP string,
 		getNewOrder(OrderQueue, newTargetFloor, localIP)
 	}
 
-	loggingPeriod := 100 * time.Millisecond
+	loggingPeriod := 200 * time.Millisecond
 	loggingTicker := time.NewTicker(loggingPeriod)
 
 	for {

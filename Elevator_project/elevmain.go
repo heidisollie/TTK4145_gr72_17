@@ -60,6 +60,7 @@ func main() {
 	floorEvent := make(chan int, 100) //heis ved etasje til order_handler
 	floorEventFSM := make(chan int, 100)
 	floorEventOrderHandler := make(chan int, 100)
+	floorEvent2 := make(chan int, 100)
 
 	buttonEvent := make(chan driver.OrderButton, 100) //knappetrykk til order_handler
 	processNewOrder := make(chan structs.Order, 100)  //ekstern ordre fra order handler for kost funksjonen
@@ -112,7 +113,7 @@ func main() {
 
 	go backup.AliveSpammer(structs.Filename)
 
-	go driver.EventListener(buttonEvent, floorEvent)
+	go driver.EventListener(buttonEvent, floorEvent, floorEvent2)
 	go FSM.FSMInit(floorEventFSM, newTargetFloor, floorCompleted, elevSendState)
 
 	go order_handler.OrderHandlerInit(localIP,
@@ -126,7 +127,7 @@ func main() {
 		elevReceiveRemoveOrder,
 		elevLost,
 		newTargetFloor,
-		floorEventOrderHandler)
+		floorEvent2)
 
 	go network.NetworkInit(localIP,
 		elevSendState,

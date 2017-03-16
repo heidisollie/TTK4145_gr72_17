@@ -126,6 +126,11 @@ func FSMInit(floorEvent <-chan int, newTargetFloor <-chan int, floorCompleted ch
 				} else if targetFloor > localState.ReadLocalState().LastPassedFloor {
 					elevGoUp(mu)
 
+				} else {
+					elevStop(mu)
+					doorTimer.Reset(doorPeriod)
+					driver.SetDoorOpenLamp(1)
+					State = doorOpen
 				}
 			case doorOpen:
 				//fmt.Printf("Door open\n")

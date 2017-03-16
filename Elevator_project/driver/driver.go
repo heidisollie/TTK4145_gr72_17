@@ -53,7 +53,7 @@ func ElevInit() {
 
 }
 
-func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
+func EventListener(buttonEvent chan OrderButton, floorEvent chan int, floorEvent2 chan int) {
 	buttonWasActive := [NumFloors][NumButtons]int{
 		{0, 0, 0},
 		{0, 0, 0},
@@ -66,6 +66,7 @@ func EventListener(buttonEvent chan OrderButton, floorEvent chan int) {
 		floorSignal = GetFloorSignal()
 		if floorSignal != lastPassedFloor && floorSignal != -1 {
 			floorEvent <- floorSignal
+			floorEvent2 <- floorSignal
 			lastPassedFloor = floorSignal
 			for button := ButtonCallDown; int(button) < NumButtons; button++ {
 				buttonWasActive[floorSignal][button] = GetButtonSignal(button, floorSignal)
