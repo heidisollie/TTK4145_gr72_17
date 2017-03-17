@@ -27,3 +27,7 @@ func ChangeLocalState_stuck(stuck bool) {
 func ChangeLocalState_IP(IP string) {
 	localElevator.IP = IP
 }
+
+func ChangeLocalState_Online(state bool) {
+	localElevator.Online = state
+}

@@ -164,18 +164,23 @@ func OrderHandlerInit(localIP string,
 				//fmt.Printf("Order handler: Retrieving new order\n")
 				getNewOrder(OrderQueue, newTargetFloor, localIP)
 			}
-
 		case orderButton := <-buttonEvent:
+			fmt.Printf("Button was pressed\n")
 			if orderButton.Type == driver.ButtonCallCommand {
-				////fmt.Printf("Order handler: Button pressed is command button\n")
+				fmt.Printf("1\n")
 				newIntOrder := structs.Order{Type: orderButton.Type, Floor: orderButton.Floor, IP: localIP}
 				OrderQueue = addOrder(newIntOrder, OrderQueue, newTargetFloor, localIP)
 
-			} else { // if external, send to order distribution
-				newExtOrder := structs.Order{Type: orderButton.Type, Floor: orderButton.Floor, IP: localIP}
-				elevSendNewOrder <- newExtOrder // for å sende til network
-				////fmt.Printf("Order handler: Sending new order to order_dist\n")
-				processNewOrder <- newExtOrder
+			} else {
+				fmt.Printf("2\n")
+				if localState.ReadLocalState().Online == true {
+					newExtOrder := structs.Order{Type: orderButton.Type, Floor: orderButton.Floor, IP: localIP}
+					elevSendNewOrder <- newExtOrder
+					processNewOrder <- newExtOrder
+				} else {
+					fmt.Printf("Elevator has no network\n")
+				}
+
 			}
 
 		case newOrder := <-assignedNewOrder:

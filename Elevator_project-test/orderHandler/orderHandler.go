@@ -137,7 +137,7 @@ func OrderHandlerInit(localIP string,
 					elevSendNewOrder <- newExtOrder
 					processNewOrder <- newExtOrder
 				} else {
-					fmt.Printf("Elevator has no nettwork\n")
+					fmt.Printf("Elevator has no network\n")
 				}
 
 			}

@@ -12,8 +12,8 @@ import (
 	"./order_handler"
 	"./structs"
 	"fmt"
-	//"log"
-	//"os"
+	"log"
+	"os"
 	//"os/exec"
 	//"time"
 )
@@ -80,7 +80,7 @@ func main() {
 	peers := make(chan peers.PeerUpdate, 100)
 
 	driver.ElevInit()
-	/*
+	
 		//creating backup and waits
 		if _, err := os.Open(structs.Filename); err == nil {
 			fmt.Printf("Backup waiting\n")
@@ -94,20 +94,8 @@ func main() {
 				log.Fatal("cannot create a file\n")
 			}
 
-			go order_handler.OrderHandlerInit(localIP,
-				floorCompleted,
-				buttonEvent,
-				assignedNewOrder,
-				processNewOrder,
-				elevSendNewOrder,
-				elevSendRemoveOrder,
-				elevReceiveNewOrder,
-				elevReceiveRemoveOrder,
-				elevLost,
-				newTargetFloor,
-				floorEventOrderHandler)
 		}
-	*/
+	
 	//backupTerminal := exec.Command("gnome-terminal", "-x", "sh", "-c", "go run elevmain.go")
 	//backupTerminal.Run()
 

@@ -9,6 +9,7 @@ type ElevState struct {
 	CurrentDirection driver.MotorDirection
 	Stuck            bool
 	IP               string
+	Online           bool
 }
 
 type Order struct {
@@ -25,8 +26,3 @@ type Cost struct {
 const NUMELEV = 3
 
 const Filename = "orderBackup"
-
-/*
-func Dummy_func() {
-
-}*/

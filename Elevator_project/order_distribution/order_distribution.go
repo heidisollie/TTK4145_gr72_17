@@ -156,7 +156,7 @@ func OrderDistInit(localIP string,
 
 	var peers int = 0
 	stateController := make(map[string]*structs.ElevState)
-	stateController[localIP] = &structs.ElevState{localState.ReadLocalState().LastPassedFloor, 0, false, localIP}
+	stateController[localIP] = &structs.ElevState{localState.ReadLocalState().LastPassedFloor, 0, false, localIP, true}
 
 	for {
 		select {
@@ -175,10 +175,17 @@ func OrderDistInit(localIP string,
 		//Update number of peers if change and remove lost elevators som stateController
 		case p := <-Peers:
 			peers = len(p.Peers)
-			fmt.Printf("Received updated number of peers: %d \n", peers)
 			if len(p.Lost) != 0 {
-				delete(stateController, p.Lost[0]) //We assume only lose one elevator at a time
-				elevLost <- p.Lost[0]
+				if p.Lost[0] == localIP {
+					fmt.Printf("----Lost network----\n")
+					localState.ChangeLocalState_Online(false)
+				} else {
+					delete(stateController, p.Lost[0])
+					elevLost <- p.Lost[0]
+				}
+			} else if len(p.New) != 0 && p.New == localIP {
+				fmt.Printf("We're back online\n")
+				localState.ChangeLocalState_Online(true)
 			}
 		//Received new order from order handler
 		case order := <-processNewOrder:
